@@ -128,6 +128,18 @@ write_csv(senate_forecast_timeline, "output/senate_forecast_timeline.csv")
 write_csv(senate_state_forecast_timeline, "output/senate_state_forecast_timeline.csv")
 
 # Actual viewing of summary stuff ####
+## House district-level forecasts for presentation
+house_district_posterior_summary_stats %>%
+  mutate(r_prob = percent(r_prob, accuracy = 1),
+         pct_05 = percent(pct_05, accuracy = 0.1),
+         avg = percent(avg, accuracy = 0.1),
+         pct_95 = percent(pct_95, accuracy = 0.1)) %>%
+  ungroup() %>%
+  select(State = state, District = seat_number, `Prob(R)` = r_prob, `5th percentile` = pct_05, Average = avg, 
+         `95th percentile` = pct_95) %>%
+  print(n = Inf)
+
+## Joint probability distribution of House and Senate majorities
 senate_seat_sims %>% 
   mutate(senate_maj = ifelse(rep >= 50, "Republican", "Democratic")) %>%
   select(sim_id, senate_maj) %>%
@@ -136,7 +148,8 @@ senate_seat_sims %>%
               select(sim_id, house_maj),
             by = "sim_id") %>%
   group_by(senate_maj, house_maj) %>%
-  summarise(prob = n() / n_sims) %>% spread(senate_maj, prob)
+  summarise(prob = n() / n_sims) %>% 
+  spread(senate_maj, prob)
 
 senate_state_posterior_summary_stats %>%
   print(n = Inf)

@@ -219,7 +219,11 @@ house_district_posterior <- house_posterior %>%
          r2p_top2_pred = ifelse(is.na(r2p_top2_pred), 0, r2p_top2_pred),
          r2p_top2_weight = 0,
          r2p_pred = (r2p_swing_weight * r2p_swing_pred + r2p_district_poll_weight * r2p_district_poll_pred + r2p_top2_weight * r2p_top2_pred) /
-           (r2p_swing_weight + r2p_district_poll_weight + r2p_top2_weight))
+           (r2p_swing_weight + r2p_district_poll_weight + r2p_top2_weight)) %>%
+  # One last thing: for uncontested districts, set Republican share to appropriate value
+  mutate(r2p_pred = case_when(!contested_rep ~ 0,
+                              !contested_dem ~ 1,
+                              TRUE ~ r2p_pred))
 
 house_district_posterior_summary_stats <- house_district_posterior %>%
   group_by(year, state, seat_number) %>%
