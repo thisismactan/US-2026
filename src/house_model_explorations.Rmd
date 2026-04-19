@@ -1,0 +1,788 @@
+---
+title: "House model explorations"
+output: html_notebook
+---
+
+```{r}
+source("src/process_data.R")
+
+# In-time/OOT split since that will be needed a few times
+house_election_data_dev <- house_election_data %>% filter(year %in% 2010:2020)
+house_election_data_oot <- house_election_data %>% filter(year >= 2022)
+```
+
+## House model from national swing
+
+### Linear model
+
+```{r}
+### Dev/val split on the House data: 2010-2020 for dev, 2022-2024 for val
+house_model_data_split <- list(
+  # Dev data
+  r2p = house_election_data_dev %>% pull(r2p),
+  last_r2p = house_election_data_dev %>% pull(last_r2p),
+  midterm = as.numeric((house_election_data_dev %>% pull(year) %% 4) == 2),
+  redistricted = as.numeric(house_election_data_dev %>% pull(redistricted)),
+  incumbent_running = case_when(house_election_data_dev$incumbent_running == "Both (redistricting)" ~ 1,
+                                house_election_data_dev$incumbent_running == "DEM" ~ 2,
+                                house_election_data_dev$incumbent_running == "None" ~ 3,
+                                house_election_data_dev$incumbent_running == "REP" ~ 4),
+  natl_r2p_change = house_election_data_dev %>% pull(natl_r2p_change),
+  last_pres_r2p = house_election_data_dev %>% pull(last_pres_r2p),
+  contested_last = as.numeric(house_election_data_dev %>% pull(contested_last)),
+  N_e = nrow(house_election_data_dev),
+  # OOT data
+  r2p_oot = house_election_data_oot %>% pull(r2p),
+  last_r2p_oot = house_election_data_oot %>% pull(last_r2p),
+  midterm_oot = as.numeric((house_election_data_oot %>% pull(year) %% 4) == 2),
+  redistricted_oot = as.numeric(house_election_data_oot %>% pull(redistricted)),
+  incumbent_running_oot = case_when(house_election_data_oot$incumbent_running == "Both (redistricting)" ~ 1,
+                                    house_election_data_oot$incumbent_running == "DEM" ~ 2,
+                                    house_election_data_oot$incumbent_running == "None" ~ 3,
+                                    house_election_data_oot$incumbent_running == "REP" ~ 4),
+  natl_r2p_change_oot = house_election_data_oot %>% pull(natl_r2p_change),
+  last_pres_r2p_oot = house_election_data_oot %>% pull(last_pres_r2p),
+  contested_last_oot = as.numeric(house_election_data_oot %>% pull(contested_last)),
+  N_oot = nrow(house_election_data_oot)
+)
+
+house_model_dev_val <- cmdstan_model("src/house_model_dev_val.stan")
+house_model_dev_val_fit <- house_model_dev_val$sample(
+  data = house_model_data_split, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+
+```{r}
+print(house_model_dev_val_fit, max_rows = 46)
+house_dev_val_posterior <- as_tibble(house_model_dev_val_fit$draws(format = "df"))
+n_sims <- nrow(house_dev_val_posterior)
+```
+
+```{r}
+house_district_dev_val_posterior <- house_dev_val_posterior %>%
+  select(starts_with("r2p_pred")) %>%
+  t() %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  bind_cols(bind_rows(house_election_data_dev, house_election_data_oot)) %>%
+  melt(measure.vars = paste0("V", as.character(1:n_sims)), variable.name = "sim_id", value.name = "r2p_pred") %>%
+  as_tibble() %>%
+  mutate(sim_id = as.integer(sim_id))
+
+house_district_dev_val_posterior_summary_stats <- house_district_dev_val_posterior %>%
+  group_by(year, state, seat_number) %>%
+  summarise(r2p = mean(r2p),
+            r_prob = mean(r2p_pred >= 0.5),
+            pct_05 = quantile(r2p_pred, 0.05),
+            avg = mean(r2p_pred),
+            pct_95 = quantile(r2p_pred, 0.95))
+
+house_district_dev_val_posterior_summary_stats %>%
+  mutate(midterm = (year %% 4) == 2) %>%
+  filter(year >= 2022) %>%
+  ggplot(aes(x = avg, y = r2p)) +
+  geom_vline(xintercept = 0.5) +
+  geom_hline(yintercept = 0.5) +
+  geom_point(aes(col = factor(year)), alpha = 0.2) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, col = "blue") +
+  geom_smooth(aes(col = factor(year), linetype = midterm), method = "loess") +
+  scale_x_continuous(breaks = (1:10) / 10, limits = c(0, 1), labels = percent_format()) +
+  scale_y_continuous(breaks = (1:10) / 10, limits = c(0, 1), labels = percent_format()) +
+  labs(x = "Posterior mean Republican 2-party vote share", y = "Actual Republican 2-party vote share",
+       title = "Mean predicted Republican 2-party vote share vs. actual",
+       subtitle = "Contested House elections in 2022 and 2024",
+       caption = "Dev sample: 2,316 contested House elections 2010-2020")
+```
+
+Appears to have a slight bias in 2022 (about 3 percentage points below 45-degree line at 50%). But we can live with this, I think.
+
+### Logit link model
+
+```{r}
+logit_house_model_data_split <- list(
+  # Dev data
+  logit_r2p = house_election_data_dev %>% pull(r2p) %>% logit(),
+  logit_last_r2p = house_election_data_dev$last_r2p %>%
+    replace_when(house_election_data_dev$last_r2p == 0 ~ 0.01,
+                 house_election_data_dev$last_r2p == 1 ~ 0.99) %>%
+    logit(),
+  midterm = as.numeric((house_election_data_dev %>% pull(year) %% 4) == 2),
+  redistricted = as.numeric(house_election_data_dev %>% pull(redistricted)),
+  incumbent_running = case_when(house_election_data_dev$incumbent_running == "Both (redistricting)" ~ 1,
+                                house_election_data_dev$incumbent_running == "DEM" ~ 2,
+                                house_election_data_dev$incumbent_running == "None" ~ 3,
+                                house_election_data_dev$incumbent_running == "REP" ~ 4),
+  natl_r2p_change = house_election_data_dev %>% pull(natl_r2p_change),
+  last_pres_r2p = house_election_data_dev %>% pull(last_pres_r2p),
+  contested_last = as.numeric(house_election_data_dev %>% pull(contested_last)),
+  N_e = nrow(house_election_data_dev),
+  # OOT data
+  logit_r2p_oot = house_election_data_oot %>% pull(r2p) %>% logit(),
+  logit_last_r2p_oot = house_election_data_oot$last_r2p %>%
+    replace_when(house_election_data_oot$last_r2p == 0 ~ 0.0001,
+                 house_election_data_oot$last_r2p == 1 ~ 0.9999) %>%
+    logit(),
+  midterm_oot = as.numeric((house_election_data_oot %>% pull(year) %% 4) == 2),
+  redistricted_oot = as.numeric(house_election_data_oot %>% pull(redistricted)),
+  incumbent_running_oot = case_when(house_election_data_oot$incumbent_running == "Both (redistricting)" ~ 1,
+                                    house_election_data_oot$incumbent_running == "DEM" ~ 2,
+                                    house_election_data_oot$incumbent_running == "None" ~ 3,
+                                    house_election_data_oot$incumbent_running == "REP" ~ 4),
+  natl_r2p_change_oot = house_election_data_oot %>% pull(natl_r2p_change),
+  last_pres_r2p_oot = house_election_data_oot %>% pull(last_pres_r2p),
+  contested_last_oot = as.numeric(house_election_data_oot %>% pull(contested_last)),
+  N_oot = nrow(house_election_data_oot)
+)
+
+logit_house_model_dev_val <- cmdstan_model("src/logit_house_model_dev_val.stan")
+logit_house_model_dev_val_fit <- logit_house_model_dev_val$sample(
+  data = logit_house_model_data_split, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+
+
+```{r}
+print(logit_house_model_dev_val_fit, max_rows = 45)
+logit_house_dev_val_posterior <- as_tibble(logit_house_model_dev_val_fit$draws(format = "df"))
+```
+
+Lot of divergences, and also a lot of the covariance parameters are not being sampled well. Definitely doing something wrong here, but we should check out the predictive power anyway.
+
+```{r}
+logit_house_district_posterior <- logit_house_dev_val_posterior %>%
+  select(starts_with("logit_r2p_pred")) %>%
+  mutate_all(invlogit) %>%
+  t() %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  bind_cols(bind_rows(house_election_data_dev, house_election_data_oot)) %>%
+  melt(measure.vars = paste0("V", as.character(1:n_sims)), variable.name = "sim_id", value.name = "r2p_pred") %>%
+  as_tibble()
+
+logit_house_district_posterior_summary_stats <- logit_house_district_posterior %>%
+  group_by(year, state, seat_number) %>%
+  summarise(r2p = mean(r2p),
+            r_prob = mean(r2p_pred >= 0.5),
+            pct_05 = quantile(r2p_pred, 0.05),
+            avg = mean(r2p_pred),
+            pct_95 = quantile(r2p_pred, 0.95))
+
+logit_house_district_posterior_summary_stats %>%
+  mutate(midterm = (year %% 4) == 2) %>%
+  filter(year >= 2022) %>%
+  ggplot(aes(x = avg, y = r2p)) +
+  geom_vline(xintercept = 0.5) +
+  geom_hline(yintercept = 0.5) +
+  geom_point(aes(col = factor(year)), alpha = 0.2) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, col = "blue") +
+  geom_smooth(aes(col = factor(year), linetype = midterm), method = "loess") +
+  scale_x_continuous(breaks = (1:10) / 10, limits = c(0, 1), labels = percent_format()) +
+  scale_y_continuous(breaks = (1:10) / 10, limits = c(0, 1), labels = percent_format()) +
+  labs(x = "Posterior mean Republican 2-party vote share", y = "Actual Republican 2-party vote share",
+       title = "Mean predicted Republican 2-party vote share vs. actual (logit link model)",
+       subtitle = "Contested House elections in 2022 and 2024",
+       caption = "Dev sample: 2,316 contested House elections 2010-2020")
+```
+
+## Two-party primary vote
+
+```{r}
+# Data comparison
+house_election_data %>% 
+  select(year, state, seat_number, r2p) %>% 
+  inner_join(historical_top_two_primary, by = c("year", "state", "seat_number")) %>%
+  mutate(diff = r2p - general_pct) %>%
+  arrange(desc(abs(diff)))
+```
+
+The two datasets are pretty much the same on general election result, so we can go ahead and use the existing numbers from the master election dataset.
+
+### Just the ordinary linear regression
+
+```{r}
+historical_top_two_primary %>%
+  ggplot(aes(x = primary_pct, y = general_pct, col = midterm)) +
+  geom_vline(xintercept = 0.5) +
+  geom_hline(yintercept = 0.5) +
+  geom_abline(intercept = 0, slope = 1, linetype = 2) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  theme(legend.position = "bottom") +
+  labs(title = "General election performance vs. top-two primary result", x = "Republican 2-party vote share in primary",
+       y = "Republican vote share in general election")
+```
+```{r}
+two_party_primary_data <- list(
+  r_primary = historical_top_two_primary$primary_pct,
+  r_general = historical_top_two_primary$general_pct,
+  midterm = as.numeric(historical_top_two_primary$midterm),
+  N = nrow(historical_top_two_primary)
+)
+
+two_party_primary_model <- cmdstan_model("src/two_party_primary_model.stan")
+two_party_primary_model_fit <- two_party_primary_model$sample(
+  data = two_party_primary_data, seed = 2026,  chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+
+```{r}
+## Look at the model
+print(two_party_primary_model_fit)
+two_party_primary_posterior <- as_tibble(two_party_primary_model_fit$draws(format = "df"))
+```
+
+```{r}
+two_party_primary_district_posterior <- two_party_primary_posterior %>%
+  select(starts_with("r_general_pred")) %>%
+  t() %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  bind_cols(historical_top_two_primary) %>%
+  melt(measure.vars = paste0("V", as.character(1:n_sims)), variable.name = "sim_id", value.name = "r2p_pred") %>%
+  as_tibble() %>%
+  mutate(sim_id = as.integer(sim_id))
+
+two_party_primary_district_posterior_summary_stats <- two_party_primary_district_posterior %>%
+  group_by(year, state, seat_number) %>%
+  summarise(r2p = mean(general_pct),
+            r_prob = mean(r2p_pred >= 0.5),
+            pct_05 = quantile(r2p_pred, 0.05),
+            avg = mean(r2p_pred),
+            pct_95 = quantile(r2p_pred, 0.95))
+```
+### Extension to missing data
+
+Since if this is to be used in the model it will invariably involve missing data (most districts do not conduct top-two primaries), we will try to include the missing data in the accepted Bayesian way (treating the missing values as a parameter).
+
+```{r}
+two_party_primary_data_wmis <- list(
+  # Dev
+  r2p = house_election_data_dev$r2p,
+  r_primary_obs = (na.omit(house_election_data_dev$primary_pct) %>% as.numeric()),
+  midterm = as.numeric(house_election_data_dev$year %% 4 == 2),
+  N_t2p_obs = sum(!is.na(house_election_data_dev$primary_pct)),
+  N_t2p_mis = sum(is.na(house_election_data_dev$primary_pct)),
+  ii_t2p_obs = which(!is.na(house_election_data_dev$primary_pct)),
+  ii_t2p_mis = which(is.na(house_election_data_dev$primary_pct)),
+  # OOT
+  r2p_oot = house_election_data_oot$r2p,
+  r_primary_obs_oot = (na.omit(house_election_data_oot$primary_pct) %>% as.numeric()),
+  midterm_oot = as.numeric(house_election_data_oot$year %% 4 == 2),
+  N_t2p_obs_oot = sum(!is.na(house_election_data_oot$primary_pct)),
+  N_t2p_mis_oot = sum(is.na(house_election_data_oot$primary_pct)),
+  ii_t2p_obs_oot = which(!is.na(house_election_data_oot$primary_pct)),
+  ii_t2p_mis_oot = which(is.na(house_election_data_oot$primary_pct))
+)
+
+two_party_primary_wmis_model <- cmdstan_model("src/two_party_primary_wmis_model.stan")
+two_party_primary_model_wmis_fit <- two_party_primary_wmis_model$sample(
+  data = two_party_primary_data_wmis, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+
+```{r}
+## Look at the model
+two_party_primary_model_wmis_fit$summary(c("a_t2p", "b1_t2p", "b2_t2p", "b3_t2p", "sigma_t2p"))
+two_party_primary_wmis_posterior <- as_tibble(two_party_primary_model_wmis_fit$draws(format = "df"))
+```
+We now have two important sets of posterior predictive draws to look at (on the OOT sample). The first is for the sample where we actually have values from the top-two primary; this will just give us a usual evaluation of the model's predictive accuracy. But we can also look at the sample where those values are missing.
+
+```{r}
+two_party_primary_wmis_district_posterior <- two_party_primary_wmis_posterior  %>%
+  select(starts_with("r2p_t2p_pred")) %>%
+  t() %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  bind_cols(bind_rows(house_election_data_dev, house_election_data_oot)) %>%
+  melt(measure.vars = paste0("V", as.character(1:n_sims)), variable.name = "sim_id", value.name = "r2p_t2p_pred") %>%
+  as_tibble() %>%
+  mutate(sim_id = as.integer(sim_id))
+
+two_party_primary_wmis_district_posterior_summary_stats <- two_party_primary_wmis_district_posterior %>%
+  group_by(year, state, seat_number) %>%
+  summarise(r2p = mean(r2p),
+            had_t2p = any(!is.na(primary_pct)),
+            r_prob = mean(r2p_t2p_pred >= 0.5),
+            pct_05 = quantile(r2p_t2p_pred, 0.05),
+            avg = mean(r2p_t2p_pred),
+            pct_95 = quantile(r2p_t2p_pred, 0.95))
+```
+```{r}
+two_party_primary_wmis_district_posterior_summary_stats %>%
+  mutate(district = district_abbr_encoder(state, seat_number),
+         sample = ifelse(year %in% 2010:2020, "Dev", "OOT")) %>%
+  ggplot(aes(x = avg, y = r2p)) +
+  facet_wrap(~had_t2p + sample) +
+  geom_abline(intercept = 0, slope = 1, linetype = 2) +
+  geom_text(aes(label = district), size = 2) +
+  geom_smooth() +
+  scale_x_continuous(breaks = (1:10) / 10, labels = percent_format()) +
+  scale_y_continuous(breaks = (1:10) / 10, labels = percent_format()) +
+  labs(title = "Republican House general election performance vs. top-two primary performance",
+       subtitle = "By 1) whether top-two primary occurred and 2) dev (2010-2020) vs. OOT (2022 and 2024)",
+       x = "Republican share of top-two primary vote, average across posterior draws",
+       y = "Republican share of two-party general election vote")
+```
+The model's predictive accuracy is as follows:
+  - Where there was a top-two primary, the model performs very well regardless of whether the data was from the dev or OOT period.
+  - In the dev sample where there was no top-two primary, the model's average across all posterior draws lines up perfectly, as it has to (it's basically imputing the top-two primary value that gets the general election result right based on the model). However, the variance is larger, as you'll see below.
+  - In the OOT sample Where there is no top-two primary, the model is not updating at all and is basically making posterior draws from the prior; this is responsible for the average of ~50% for all imputed top-two primaries.
+
+```{r}
+two_party_primary_wmis_district_posterior_summary_stats %>%
+  group_by(had_t2p, sample = ifelse(year %in% 2010:2020, "Dev", "OOT")) %>%
+  summarise(avg_ci90_radius = mean((pct_95 - pct_05) / 2))
+```
+## Attempt at combining the two
+
+What it says. Let's burn it down. (Dev/val first)
+
+```{r}
+house_combined_model_data <- list(
+  r2p = house_election_data_dev$r2p,
+  # National swing component
+  ## Dev sample
+  N_e = nrow(house_election_data_dev),
+  r2p_ns = house_election_data_dev$r2p,
+  last_r2p = house_election_data_dev$last_r2p,
+  midterm = as.numeric(house_election_data_dev$year %% 4 == 2),
+  redistricted = as.numeric(house_election_data_dev$redistricted),
+  natl_r2p_change = house_election_data_dev$natl_r2p_change,
+  last_pres_r2p = house_election_data_dev$last_pres_r2p,
+  contested_last = as.numeric(house_election_data_dev$contested_last),
+  incumbent_running = case_when(
+    house_election_data_dev$incumbent_running == "Both (redistricting)" ~ 1,
+    house_election_data_dev$incumbent_running == "DEM" ~ 2,
+    house_election_data_dev$incumbent_running == "None" ~ 3,
+    house_election_data_dev$incumbent_running == "REP" ~ 4,
+  ),
+  ## OOT sample
+  N_oot = nrow(house_election_data_oot),
+  last_r2p_oot = house_election_data_oot$last_r2p,
+  midterm_oot = as.numeric(house_election_data_oot$year %% 4 == 2),
+  redistricted_oot = as.numeric(house_election_data_oot$redistricted),
+  natl_r2p_change_oot = house_election_data_oot$natl_r2p_change,
+  last_pres_r2p_oot = house_election_data_oot$last_pres_r2p,
+  contested_last_oot = as.numeric(house_election_data_oot$contested_last),
+  incumbent_running_oot = case_when(
+    house_election_data_oot$incumbent_running == "Both (redistricting)" ~ 1,
+    house_election_data_oot$incumbent_running == "DEM" ~ 2,
+    house_election_data_oot$incumbent_running == "None" ~ 3,
+    house_election_data_oot$incumbent_running == "REP" ~ 4,
+  ),
+  # Top-two primary component
+  ## Dev sample
+  r2p_t2p = house_election_data_dev$r2p,
+  has_t2p = as.numeric(!is.na(house_election_data_dev$primary_pct)),
+  N_t2p_obs = sum(!is.na(house_election_data_dev$primary_pct)),
+  N_t2p_mis = sum(is.na(house_election_data_dev$primary_pct)),
+  ii_t2p_obs = which(!is.na(house_election_data_dev$primary_pct)),
+  ii_t2p_mis = which(is.na(house_election_data_dev$primary_pct)),
+  r_primary_obs = as.numeric(na.omit(house_election_data_dev$primary_pct)),
+  ## OOT sample
+  has_t2p_oot = as.numeric(!is.na(house_election_data_oot$primary_pct)),
+  N_t2p_obs_oot = sum(!is.na(house_election_data_oot$primary_pct)),
+  N_t2p_mis_oot = sum(is.na(house_election_data_oot$primary_pct)),
+  ii_t2p_obs_oot = which(!is.na(house_election_data_oot$primary_pct)),
+  ii_t2p_mis_oot = which(is.na(house_election_data_oot$primary_pct)),
+  r_primary_obs_oot = as.numeric(na.omit(house_election_data_oot$primary_pct))
+)
+
+house_combined_model <- cmdstan_model("src/house_model_combined_dev_val.stan")
+house_combined_model_fit <- house_combined_model$sample(
+  data = house_combined_model_data, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+```{r}
+## Look at the model
+print(house_combined_model_fit, max_rows = 100)
+house_combined_model_posterior <- as_tibble(house_combined_model_fit$draws(format = "df"))
+```
+
+So far this isn't really working, but let's try something less ambitious. Run the two separate models, then use the predictions as inputs to a simple linear combination which is supposed to predict the final r2p.
+
+```{r}
+joint_posterior <- house_district_dev_val_posterior %>% 
+  select(year, state, seat_number, sim_id, r2p, r2p_ns_pred = r2p_pred) %>%
+  left_join(two_party_primary_wmis_district_posterior %>%
+              select(year, state, seat_number, sim_id, primary_pct, r2p_t2p_pred),
+            by = c("year", "state", "seat_number", "sim_id")) %>%
+  group_by(year, state, seat_number) %>%
+  mutate(ns_var = var(r2p_ns_pred),
+         t2p_var = var(r2p_t2p_pred)) %>%
+  ungroup() %>%
+  mutate(ns_weight = 1 / ns_var,
+         t2p_weight = ifelse(!is.na(primary_pct), 1 / t2p_var, 0),
+         r2p_pred1 = (ns_weight * r2p_ns_pred + t2p_weight * r2p_t2p_pred) / (ns_weight + t2p_weight))
+
+joint_posterior
+```
+
+```{r}
+joint_posterior %>%
+  filter(!is.na(primary_pct)) %>%
+  group_by(year, state, seat_number, r2p) %>%
+  summarise(avg_pred_ns = mean(r2p_ns_pred),
+            sd_pred_ns = sd(r2p_ns_pred),
+            rmse_ns = sqrt(mean((r2p - r2p_ns_pred)^2)),
+            avg_pred1 = mean(r2p_pred1),
+            sd_pred1 = sd(r2p_pred1),
+            rmse_pred1 = sqrt(mean((r2p - r2p_pred1)^2))) %>% 
+  ggplot(aes(x = rmse_pred1, y = rmse_ns)) +
+  geom_abline(intercept = 0, slope = 1, linetype = 2) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  geom_point()
+```
+All that is on the basis of inverse-variance weighting. What happens if we optimize the weights instead?
+
+```{r}
+model_weighted_average_mse <- function(alpha, pred1, pred2, actual) {
+  pred <- alpha * pred1 + (1 - alpha) * pred2
+  error <- pred - actual
+  return(mean(error^2))
+}
+
+opt_ns_weight <- optimize(
+  model_weighted_average_mse, interval = c(0, 1), 
+  pred1 = joint_posterior %>% 
+    filter(!is.na(primary_pct)) %>% 
+    group_by(year, state, seat_number) %>% 
+    summarise(avg_pred = mean(r2p_ns_pred)) %>%
+    pull(avg_pred),
+  pred2 = joint_posterior %>% 
+    filter(!is.na(primary_pct)) %>% 
+    group_by(year, state, seat_number) %>% 
+    summarise(avg_pred = mean(r2p_t2p_pred)) %>%
+    pull(avg_pred),
+  actual = joint_posterior %>%
+    filter(!is.na(primary_pct)) %>% 
+    group_by(year, state, seat_number) %>% 
+    summarise(avg_pred = mean(r2p)) %>%
+    pull(avg_pred))$minimum
+
+joint_posterior <- joint_posterior %>%
+  mutate(r2p_pred2 = ifelse(!is.na(primary_pct), opt_ns_weight * r2p_ns_pred + (1 - opt_ns_weight) * r2p_t2p_pred, r2p_ns_pred))
+
+joint_posterior %>%
+  filter(!is.na(primary_pct)) %>%
+  group_by(year, state, seat_number, r2p) %>%
+  summarise(avg_pred_ns = mean(r2p_ns_pred),
+            sd_pred_ns = sd(r2p_ns_pred),
+            rmse_ns = sqrt(mean((r2p - r2p_ns_pred)^2)),
+            avg_pred1 = mean(r2p_pred1),
+            sd_pred1 = sd(r2p_pred1),
+            rmse_pred1 = sqrt(mean((r2p - r2p_pred1)^2)),
+            avg_pred2 = mean(r2p_pred2),
+            sd_pred2 = sd(r2p_pred2),
+            rmse_pred2 = sqrt(mean((r2p - r2p_pred2)^2))) %>% 
+  ggplot(aes(x = rmse_pred1, y = rmse_pred2)) +
+  geom_abline(intercept = 0, slope = 1, linetype = 2) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  geom_point()
+```
+Pretty much the same, so let's go with inverse-variance weighting for its comparative elegance and simplicity of implementation.
+
+## Predicting House vote from the House polls
+
+When simulating the House election, we will need to put some kind of distribution on the national House popular vote. Our source of data for this at any given time (t days before the election) is going to be the generic ballot polls as of t days before the election. We will use a fairly simple weighted average (with weights defined consistently across all election cycles) as our prediction of the House national popular vote and consider the possible sources of uncertainty in its ability to predict that:
+
+  - **Sampling variation**: The polls do not agree with each other perfectly. Had we taken different polls up to that point, the average would be a little different from what we observed.
+  - **Bias**: Even if we knew what the "true" polling average was (and in a Bayesian framework it's not even the case that such a thing means anything) it would still systematically differ from the actual House popular vote for a variety of reasons.
+  - **Undecided/other voters**: The proportion of respondents in a poll who say they're voting for one of the two major parties is usually significantly lower than the proportion who do so in the actual election.
+  - **Drift over time**: Even if we knew what the "true" polling average was and we knew it to measure how people would vote in the House election exactly accurately at a given point in time, people's views change over time. Opinion 3 months out from the election will be different from opinion on the day of the election.
+
+```{r}
+# Restrict ourselves to Republican 2-party share in the year of the election
+historical_r2p_averages <- historical_generic_ballot_averages %>%
+  filter(year(election_date) == year(avg_date),
+         party == "rep") %>%
+  group_by(election_date) %>%
+  mutate(final_election_avg = last(avg)) %>%
+  ungroup() %>%
+  mutate(drift = final_election_avg - avg)
+
+historical_r2p_averages_smoothed <- historical_generic_ballot_averages_smoothed %>%
+  filter(year(election_date) == year(avg_date),
+         party == "rep") %>%
+  group_by(election_date) %>%
+  mutate(final_election_avg = last(avg)) %>%
+  ungroup() %>%
+  mutate(drift = final_election_avg - avg)
+```
+
+### Data exploration
+
+Smoothed (over previous 5 days) vs. unsmoothed averages:
+
+```{r}
+bind_rows(
+  historical_r2p_averages %>% mutate(type = "Raw"),
+  historical_r2p_averages_smoothed %>% mutate(type = "Smoothed (5 days)")
+) %>%
+  ggplot(aes(x = days_to_election, y = avg)) +
+  facet_wrap(~year, scale = "free_y") +
+  geom_line(aes(col = type)) +
+  scale_x_reverse() +
+  scale_y_continuous(labels = percent_format()) +
+  scale_colour_discrete(name = "") +
+  theme(legend.position = "bottom") +
+  labs(title = "Smoothed vs. unsmoothed generic ballot polling averages", x = "Days to election",
+       y = "Republican share of 2-party vote")
+```
+Smoothing appears to meaningfully reduce day-to-day variance in polling average, so let's use that from now on. What does the trend look like over time?
+
+```{r}
+historical_r2p_averages_smoothed %>%
+  ggplot(aes(x = days_to_election, y = 100 * drift)) +
+  geom_line(aes(col = factor(year)), linewidth = 1) +
+  scale_x_reverse() +
+  scale_colour_discrete(name = "Election year") +
+  theme(legend.position = "bottom") +
+  labs(title = "Difference between Election Day poll average and poll average t days prior",
+       x = "Days to election", y = "Change in polling average to Election Day (pp)")
+  
+```
+2018 appears to be a clear outlier, so let's remove it from the modeling dataset.
+
+### Basic model that just estimates variance
+
+```{r}
+poll_variance_data <- list(
+  N = nrow(historical_r2p_averages_smoothed),
+  N_e = n_distinct(historical_r2p_averages_smoothed$election_date),
+  avg = historical_r2p_averages_smoothed$avg,
+  days_gt_30 = as.numeric(historical_r2p_averages_smoothed$days_to_election >= 30),
+  days_gt_60 = as.numeric(historical_r2p_averages_smoothed$days_to_election >= 60),
+  days_gt_120 = as.numeric(historical_r2p_averages_smoothed$days_to_election >= 120),
+  final_election_avg = historical_r2p_averages_smoothed$final_election_avg,
+  final_election_avg_red = historical_r2p_averages_smoothed %>% filter(days_to_election == 0) %>% pull(final_election_avg),
+  r2p = historical_r2p_averages_smoothed %>% filter(days_to_election == 0) %>% pull(actual_2p)
+)
+
+poll_variance_model <- cmdstan_model("src/house_vote_from_polls.stan")
+poll_variance_model_fit <- poll_variance_model$sample(
+  data = poll_variance_data, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+
+```{r}
+## Look at the model
+print(poll_variance_model_fit, max_rows = 200)
+poll_variance_model_posterior <- as_tibble(poll_variance_model_fit$draws(format = "df"))
+```
+
+What does the distribution the drift curve (drift_sigma vs. time to election) look like?
+
+```{r}
+poll_variance_model_posterior %>%
+  cross_join(tibble(days_to_election = 0:180)) %>%
+  mutate(days_gt_60 = days_to_election >= 60,
+         days_gt_120 = days_to_election >= 120,
+         sigma_drift_pred = exp(b0_drift + b1_drift * days_to_election + b2_drift * days_gt_60 + b3_drift * days_gt_120)) %>%
+  ggplot(aes(x = days_to_election, y = sigma_drift_pred, group = .draw)) +
+  geom_line(alpha = 0.01) +
+  scale_x_reverse()
+  
+```
+Doesn't seem to be making reasonable predictions (I feel like standard deviation should be much smaller). Let's try a different approach.
+
+```{r}
+poll_averages_filtered <- historical_r2p_averages_smoothed %>%
+  filter(year > 2018)
+
+generic_ballot_drift_data <- list(
+  N = nrow(poll_averages_filtered),
+  days_to_election = poll_averages_filtered$days_to_election,
+  days_gt_15 = as.numeric(poll_averages_filtered$days_to_election >= 15),
+  days_gt_30 = as.numeric(poll_averages_filtered$days_to_election >= 30),
+  days_gt_240 = as.numeric(poll_averages_filtered$days_to_election >= 240),
+  drift = poll_averages_filtered$drift
+)
+
+generic_ballot_drift_model <- cmdstan_model("src/house_generic_ballot_drift_model.stan")
+generic_ballot_drift_model_fit <- generic_ballot_drift_model$sample(
+  data = generic_ballot_drift_data, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+
+```{r}
+## Look at the model
+print(generic_ballot_drift_model_fit, max_rows = 100)
+generic_ballot_drift_model_posterior <- as_tibble(generic_ballot_drift_model_fit$draws(format = "df"))
+```
+### Let's do more exploratory plots
+
+Squared change:
+
+```{r}
+historical_r2p_averages_smoothed %>%
+  ggplot(aes(x = days_to_election, y = (100 * drift)^2)) +
+  geom_line(aes(col = factor(year)), linewidth = 1) +
+  scale_x_reverse() +
+  scale_colour_discrete(name = "Election year") +
+  theme(legend.position = "bottom") +
+  labs(title = "Squared difference between Election Day poll average and poll average t days prior",
+       x = "Days to election", y = "Squared change in polling average to Election Day (pp)")
+```
+Day-to-day change:
+
+```{r}
+historical_r2p_averages_smoothed %>%
+  group_by(year) %>%
+  mutate(change = avg - lag(avg)) %>%
+  ggplot(aes(x = days_to_election, y = 100 * change)) +
+  geom_line(aes(col = factor(year)), linewidth = 1) +
+  scale_x_reverse() +
+  scale_colour_discrete(name = "Election year") +
+  theme(legend.position = "bottom") +
+  labs(title = "Day-to-day polling average drift",
+       x = "Days to election", y = "Change in polling average from previous day (pp)")
+```
+Week-on-week changes:
+
+```{r}
+historical_r2p_averages_smoothed %>%
+  group_by(year) %>%
+  mutate(change = avg - lag(avg, 7)) %>%
+  ggplot(aes(x = days_to_election, y = 100 * change)) +
+  geom_line(aes(col = factor(year)), linewidth = 1) +
+  scale_x_reverse() +
+  scale_colour_discrete(name = "Election year") +
+  theme(legend.position = "bottom") +
+  labs(title = "Day-to-day polling average drift",
+       x = "Days to election", y = "Change in polling average from previous week (pp)")
+```
+What do these autocorrelation functions look like?
+
+```{r}
+poll_average_daily_change_acf_list <- vector("list", length = 3)
+election_years <- c(2018, 2020, 2022, 2024)
+
+for(i in seq_along(election_years)) {
+  poll_average_daily_change_acf_list[[i]] <- tibble(
+    year = election_years[i],
+    lag = 0:60,
+    rho = acf(historical_r2p_averages_smoothed %>% 
+                filter(year == election_years[i]) %>% 
+                mutate(change = avg - lag(avg)) %>%
+                pull(change) %>%
+                na.omit() %>%
+                as.numeric(),
+              lag.max = 60, plot = FALSE)$acf %>% as.vector()
+    )
+}
+
+poll_average_daily_change_acf <- bind_rows(poll_average_daily_change_acf_list)
+poll_average_daily_change_acf %>%
+  spread(year, rho)
+```
+
+Autocorrelation is strongest between $t$ and $t-1$, weaker between $t$ and $t-2$, and more or less negligible after that (though curiously there's a spike at $t-5$ that might be worth incorporating).
+
+Next up: do a Stan autoregressive model to get the posterior distribution of election day average conditional on today's average.
+
+```{r}
+historical_r2p_averages_smoothed_delta <- historical_r2p_averages_smoothed %>%
+  filter(year != 2018) %>%
+  group_by(year) %>%
+  mutate(delta = avg - lag(avg),
+         delta_t1 = lag(delta),
+         delta_t2 = lag(delta, 2),
+         delta_t3 = lag(delta, 3),
+         delta_t4 = lag(delta, 4),
+         delta_t5 = lag(delta, 5)) %>%
+  ungroup() %>%
+  na.omit()
+
+historical_r2p_averages_smoothed_delta
+```
+
+```{r}
+polling_ar_data <- list(
+  N = nrow(historical_r2p_averages_smoothed_delta),
+  delta = historical_r2p_averages_smoothed_delta$delta,
+  delta_t1 = historical_r2p_averages_smoothed_delta$delta_t1,
+  delta_t2 = historical_r2p_averages_smoothed_delta$delta_t2,
+  delta_t3 = historical_r2p_averages_smoothed_delta$delta_t3,
+  delta_t4 = historical_r2p_averages_smoothed_delta$delta_t4,
+  delta_t5 = historical_r2p_averages_smoothed_delta$delta_t5
+)
+
+polling_ar_model <- cmdstan_model("src/poll_average_ar_model.stan")
+polling_ar_model_fit <- polling_ar_model$sample(
+  data = polling_ar_data, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
+  parallel_chains = 4, refresh = 500
+)
+```
+
+```{r}
+print(polling_ar_model_fit, max_rows = 26)
+polling_ar_model_posterior <- as_tibble(polling_ar_model_fit$draws(format = "df"))
+```
+```{r}
+polling_ar_model_posterior
+```
+
+### Practice getting predictions out of these
+
+```{r}
+polling_ar_posterior_coefs <- polling_ar_model_posterior[, c("b0", "b1", "b2", "b3", "b4", "b5")] %>% as.matrix()
+polling_ar_posterior_sigmas <- polling_ar_model_posterior$sigma
+
+set.seed(2026)
+n_sims <- nrow(polling_ar_posterior_coefs)
+today_matrix <- matrix(runif(1, -0.01, 0.01), nrow = n_sims, ncol = 1)
+lag_matrix <- matrix(c(1, runif(5, -0.01, 0.01)), nrow = n_sims, ncol = 6, byrow = TRUE)
+colnames(today_matrix) <- "delta"
+colnames(lag_matrix) <- c("int", "delta_t1", "delta_t2", "delta_t3", "delta_t4", "delta_t5")
+
+n_days <- 20
+change_matrix <- matrix(0, n_sims, n_days)
+
+for(i in 1:20) {
+  change_matrix[, i] <- today_matrix
+  tomorrow_draws <- rowSums(polling_ar_posterior_coefs * lag_matrix) + rnorm(n_sims, 0, polling_ar_posterior_sigmas)
+  lag_matrix <- cbind(1, today_matrix, lag_matrix[, 2:5])
+  today_matrix <- matrix(tomorrow_draws, nrow = n_sims, ncol = 1)
+}
+
+```
+
+```{r}
+# Plot that noise
+change_matrix %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  mutate(id = 1:n_sims) %>%
+  melt(id.vars = "id", variable.name = "days", value.name = "change") %>%
+  as_tibble() %>%
+  mutate(days = as.character(days) %>% str_remove("V") %>% as.numeric()) %>%
+  group_by(id) %>%
+  arrange(id, days) %>%
+  mutate(total_change = cumsum(change)) %>%
+  ggplot(aes(x = days, y = 100 * total_change, group = id)) +
+  geom_line(alpha = 0.01) +
+  labs(title = "Posterior predictive distribution given random noise",
+       x = "Days", y = "Total change in Republican 2-party vote share")
+```
+```{r}
+# Also just plot what the final 20-day change looks like--is it relatively normal?
+change_matrix %>%
+  rowSums() %>%
+  as.data.frame() %>%
+  ggplot(aes(x = 100 * `.`, y = after_stat(density))) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous()
+```
+
