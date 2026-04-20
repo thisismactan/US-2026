@@ -164,7 +164,7 @@ historical_generic_ballot_polls <- read_csv("data/polls/generic_ballot_polls_his
          method_weight = case_when(methodology %>% str_detect("Opt-In") ~ 0.1,
                                    methodology == "Nonprobability Panel" ~ 0.25,
                                    methodology == "Text-to-Web" ~ 0.33,
-                                   is.na(methodology) ~ 0.5,
+                                   is.na(methodology) ~ 0.75,
                                    methodology == "Probability Panel" ~ 0.75,
                                    TRUE ~ 1.0)) %>%
   filter(!is.na(n), !is.na(population), population != "a", party %in% c("dem", "rep")) %>%
@@ -282,7 +282,7 @@ senate_poll_leans_2026 <- senate_polls_2026 %>%
          method_weight = case_when(methodology %>% str_detect("Opt-In") ~ 0.1,
                                    methodology == "Nonprobability Panel" ~ 0.25,
                                    methodology == "Text-to-Web" ~ 0.33,
-                                   is.na(methodology) ~ 0.5,
+                                   is.na(methodology) ~ 0.75,
                                    methodology == "Probability Panel" ~ 0.75,
                                    TRUE ~ 1.0),
          party = case_when(party == "DEM" ~ "dem",
@@ -314,7 +314,7 @@ senate_poll_leans_2026 <- senate_polls_2026 %>%
                                    TRUE ~ 0.0),
          r2p_lean = r2p - partisan_lean - generic_ballot_avg,
          weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 3, 1) * n^(0.25) / 
-           (exp((poll_age + 7)^0.1) * ifelse(spread == 0, 3, 1)))
+           (exp((poll_age + 7)^0.4) * ifelse(spread == 0, 3, 1)))
 
 senate_average_leans_2026 <- senate_poll_leans_2026 %>%
   filter(weight > 0) %>%

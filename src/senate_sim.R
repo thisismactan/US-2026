@@ -112,14 +112,6 @@ senate_state_swing_posterior <- senate_swing_posterior %>%
   mutate(swing_weight = 1 / var(r2p_pred)) %>%
   ungroup()
 
-senate_state_swing_posterior %>%
-  group_by(state, seat_name) %>%
-  summarise(r_prob = mean(r2p_pred > 0.5),
-            pct_05 = quantile(r2p_pred, 0.05),
-            avg = mean(r2p_pred),
-            pct_95 = quantile(r2p_pred, 0.95)) %>%
-  print(n = Inf)
-
 senate_state_posterior <- senate_state_swing_posterior %>%
   select(state, seat_name, sim_id, swing_r2p = r2p_pred, swing_weight) %>%
   left_join(senate_poll_posterior %>% select(sim_id, state, seat_name, poll_r2p = sim_r2p, poll_weight), 
