@@ -11,9 +11,6 @@ library(zoo)
 library(cmdstanr)
 library(rstan)
 
-# Lato font
-library(showtext)
-
 # Other nonsense
 library(geomViolinDiscrete)
 
