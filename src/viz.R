@@ -44,7 +44,7 @@ house_district_posterior %>%
   mutate(party = as.character(party)) %>%
   ggplot(aes(x = seats, y = after_stat(count) / n_sims)) +
   facet_wrap(~party, labeller = labeller(party = party_labels), scales = "free_x", nrow = 2) +
-  geom_vline(xintercept = 217.5, linewidth = 1) +
+  geom_vline(xintercept = 217.5) +
   geom_vline(data = house_district_posterior %>%
                group_by(sim_id) %>%
                summarise(rep = sum(r2p_pred > 0.5),
@@ -52,15 +52,17 @@ house_district_posterior %>%
                melt(id.vars = "sim_id", variable.name = "party", value.name = "seats") %>%
                group_by(party = as.character(party)) %>% 
                summarise(avg = mean(seats)),
-             aes(xintercept = avg, col = party), linewidth = 1) +
-  geom_histogram(aes(fill = party, col = party), binwidth = 1, alpha = 0.5) +
+             aes(xintercept = avg, col = party), show.legend = FALSE) +
+  geom_histogram(aes(fill = party, col = party), binwidth = 1, alpha = 0.5, show.legend = FALSE, linewidth = 0.5) +
   scale_x_continuous(breaks = seq(100, 300, by = 50), limits = c(125, 300)) +
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
   scale_colour_manual(name = "Party", values = party_colors, labels = party_labels) +
   scale_fill_manual(name = "Party", values = party_colors, labels = party_labels) +
-  theme(legend.position = "bottom") +
   labs(title = "2026 House forecast", x = "House seats won", y = "Probability",
        subtitle = today() %>% format("%B %d, %Y"))
+
+ggsave("output/visualizations/house_forecast.png", width = 10, height = 5, dpi = 100)
+
 
 ## Scatterplot - Republican vote share vs. Republican seats
 house_district_posterior %>%
@@ -94,15 +96,16 @@ senate_seat_sims %>%
                melt(id.vars = c("sim_id", "majority", "ind"), variable.name = "party", value.name = "seats") %>%
                group_by(party = as.character(party)) %>%
                summarise(avg = mean(seats)),
-             aes(xintercept = avg, col = party), linewidth = 1) +
-  geom_col(aes(fill = party, col = party), alpha = 0.5) +
+             aes(xintercept = avg, col = party), linewidth = 1, show.legend = FALSE) +
+  geom_col(aes(fill = party, col = party), alpha = 0.5, show.legend = FALSE) +
   scale_x_continuous(breaks = seq(30, 70, by = 2), limits = c(36, 64)) +
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
   scale_colour_manual(name = "Party", values = party_colors, labels = party_labels) +
   scale_fill_manual(name = "Party", values = party_colors, labels = party_labels) +
-  theme(legend.position = "bottom") +
   labs(title = "2026 Senate forecast", x = "Senate seats held post-election", y = "Probability",
        subtitle = today() %>% format("%B %d, %Y"))
+
+ggsave("output/visualizations/senate_forecast.png", width = 10, height = 5, dpi = 100)
 
 ## Scatterplot - Republican vote share vs. Republican seats
 senate_seat_sims %>%
@@ -113,7 +116,7 @@ senate_seat_sims %>%
          upper = round(max(natl_r2p), 2),
          band_label = paste(percent(lower), percent(upper), sep = "-")) %>%
   filter(prob > 0.005) %>%
-  ggplot(aes(x = band_label, y = r_seats)) +
+  ggplot(aes(x = band_label, y = rep)) +
   geom_hline(yintercept = 50) +
   geom_violin_discrete(scale = "count") +
   labs(title = "Republican Senate seat conditional forecasts", subtitle = "For varying shares of national House popular vote",

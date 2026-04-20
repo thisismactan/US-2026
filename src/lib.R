@@ -10,12 +10,9 @@ library(zoo)
 # Bayesian stuff
 library(cmdstanr)
 library(rstan)
-library(bayesplot)
 
-# Scraping
-library(rvest)
-library(xml2)
-library(polite)
+# Lato font
+library(showtext)
 
 # Other nonsense
 library(geomViolinDiscrete)
@@ -199,4 +196,5 @@ state_int_encoder <- function(state, seat_number) {
   
   return(state_code)
 }
+
 
