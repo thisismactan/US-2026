@@ -96,6 +96,9 @@ historical_top_two_primary <- read_csv("data/rep_two_party_primary_results_histo
   filter(general_pct != 0, general_pct != 1) %>%
   mutate(midterm = year %% 4 == 2) 
 
+## Also grab hand-crafted regional divisions
+state_divisions <- read_csv("data/state_divisions.csv")
+
 ## Lump everything together into an election results dataset
 house_election_data <- house_district_r2p %>%
   select(year, state, seat_number, r2p) %>%
@@ -118,7 +121,8 @@ house_election_data <- house_district_r2p %>%
   filter(year >= 2010) %>%
   ungroup() %>%
   mutate(logit_r2p = log(r2p / (1 - r2p))) %>%
-  left_join(historical_top_two_primary %>% select(-midterm), by = c("year", "state", "seat_number"))
+  left_join(historical_top_two_primary %>% select(-midterm), by = c("year", "state", "seat_number")) %>%
+  left_join(state_divisions %>% select(state, region), by = "state")
 
 # Generic congressional ballot polling
 historical_generic_ballot_polls <- read_csv("data/polls/generic_ballot_polls_historical.csv") %>%
@@ -144,7 +148,8 @@ house_2026_data <- read_csv("data/district_data_2026.csv") %>%
               select(year, state, seat_number, last_r2p = r2p, last_natl_r2p = natl_r2p),
             by = c("year", "state", "seat_number")) %>%
   left_join(cd_pres_results_2026, by = c("year", "state", "seat_number")) %>%
-  mutate(contested_last = (last_r2p > 0) & (last_r2p < 1))
+  mutate(contested_last = (last_r2p > 0) & (last_r2p < 1)) %>%
+  left_join(state_divisions %>% select(state, region), by = "state")
 
 # Senate data
 # Presidential leans by state and year
@@ -221,7 +226,8 @@ senate_election_data <- historical_senate_results_filtered %>%
                                        incumbent_running == "REP" ~ 3),
          last_pres_year = floor(year / 4) * 4) %>%
   left_join(presidential_leans %>% select(year, state, last_pres_r2p = state_margin), by = c("last_pres_year" = "year", "state")) %>%
-  mutate(last_pres_r2p = 0.5 + last_pres_r2p / 2)
+  mutate(last_pres_r2p = 0.5 + last_pres_r2p / 2) %>%
+  left_join(state_divisions %>% select(state, region), by = "state")
 
 senate_2026_data <- read_csv("data/senate_candidates_2026.csv") %>%
   group_by(state, seat_name) %>%
@@ -243,5 +249,6 @@ senate_2026_data <- read_csv("data/senate_candidates_2026.csv") %>%
   mutate(last_pres_r2p = 0.5 + last_pres_r2p / 2,
          incumbent_running = case_when(incumbent_running == "DEM" ~ 1,
                                        incumbent_running == "None" ~ 2,
-                                       incumbent_running == "REP" ~ 3))
+                                       incumbent_running == "REP" ~ 3)) %>%
+  left_join(state_divisions %>% select(state, region), by = "state")
 

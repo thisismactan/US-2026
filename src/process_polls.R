@@ -64,7 +64,7 @@ for(i in seq_along(poll_average_dates)) {
     filter(end_date <= poll_average_dates[i],
            poll_average_dates[i] - median_date <= 90) %>%
     mutate(poll_age = as.numeric(poll_average_dates[i] - median_date),
-           weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 3, 1) * n^(0.25) /
+           weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1) * n^(0.25) /
              (exp((poll_age + 7)^0.5) * ifelse(spread == 0, 3, 1)),
            partisan_lean = 0.0,
            r2p = r2p - partisan_lean)
@@ -190,7 +190,7 @@ for(i in seq_along(poll_average_dates)) {
     filter(end_date <= poll_average_dates[i],
            poll_average_dates[i] - median_date <= 90) %>%
     mutate(poll_age = as.numeric(poll_average_dates[i] - median_date),
-           weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 3, 1) * n^(0.25) /
+           weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1) * n^(0.25) /
              (exp((poll_age + 7)^0.5) * ifelse(spread == 0, 3, 1)),
            partisan_lean = 0.0,
            r2p = r2p - partisan_lean)
@@ -313,7 +313,7 @@ senate_poll_leans_2026 <- senate_polls_2026 %>%
                                    is.na(partisan) ~ 0.0,
                                    TRUE ~ 0.0),
          r2p_lean = r2p - partisan_lean - generic_ballot_avg,
-         weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 3, 1) * n^(0.25) / 
+         weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1) * n^(0.25) / 
            (exp((poll_age + 7)^0.4) * ifelse(spread == 0, 3, 1)))
 
 senate_average_leans_2026 <- senate_poll_leans_2026 %>%

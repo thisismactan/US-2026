@@ -1,4 +1,4 @@
-#source("src/process_data.R")
+source("src/process_data.R")
 source("src/process_polls.R")
 
 set.seed(2026)
@@ -81,13 +81,14 @@ for(i in 1:n_days_to_election) {
 }
 
 generic_ballot_drift_sims <- rowSums(change_matrix)
+generic_ballot_drift_sims_trimmed <- generic_ballot_drift_sims[abs(generic_ballot_drift_sims) < 0.1]
 
 ## Approximate Election Day generic ballot distribution as normal distribution
-generic_ballot_drift_mean <- mean(generic_ballot_drift_sims)
+generic_ballot_drift_mean <- mean(generic_ballot_drift_sims_trimmed)
 generic_ballot_mean <- (generic_ballot_averages_2026_smoothed %>% tail(1) %>% pull(avg)) + 
   generic_ballot_drift_mean
 generic_ballot_var <- (generic_ballot_averages_2026_smoothed %>% tail(1) %>% pull(se))^2 +
-  var(generic_ballot_drift_sims)
+  var(generic_ballot_drift_sims_trimmed)
 
 natl_r2p_var_data <- list(
   N = nrow(historical_generic_ballot_averages_smoothed %>% filter(days_to_election == 0)),
@@ -115,6 +116,7 @@ house_model_data <- list(
                                 house_election_data$incumbent_running == "DEM" ~ 2,
                                 house_election_data$incumbent_running == "None" ~ 3,
                                 house_election_data$incumbent_running == "REP" ~ 4),
+  region = house_election_data %>% pull(region) %>% factor() %>% as.integer(),
   natl_r2p_change = house_election_data %>% pull(natl_r2p_change),
   last_pres_r2p = house_election_data %>% pull(last_pres_r2p),
   contested_last = as.numeric(house_election_data %>% pull(contested_last)),
@@ -129,6 +131,7 @@ house_model_data <- list(
                                     house_2026_data$incumbent_running == "DEM" ~ 2,
                                     house_2026_data$incumbent_running == "None" ~ 3,
                                     house_2026_data$incumbent_running == "REP" ~ 4),
+  region_oot = house_2026_data %>% pull(region) %>% factor() %>% as.integer(),
   last_pres_r2p_oot = house_2026_data %>% pull(last_pres_r2p),
   contested_last_oot = as.numeric(house_2026_data %>% pull(contested_last)),
   N_oot = nrow(house_2026_data)
@@ -139,7 +142,7 @@ house_model_fit <- house_model$sample(
   data = house_model_data, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
   parallel_chains = 4, refresh = 500
 )
-print(house_model_fit, max_rows = 45)
+print(house_model_fit, max_rows = 55)
 house_posterior <- as_tibble(house_model_fit$draws(format = "df"))
 n_sims <- nrow(house_posterior)
 

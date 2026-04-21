@@ -61,7 +61,7 @@ senate_poll_posterior <- expand.grid(
   left_join(state_alpha_sims %>% select(sim_id, state, alpha), by = c("sim_id", "state")) %>%
   left_join(senate_param_sims, by = "sim_id") %>%
   left_join(senate_poll_sims, by = c("sim_id", "state", "seat_name")) %>%
-  mutate(sim_r2p = alpha + b * poll_r2p + rnorm(n(), 0, sigma)) %>%
+  mutate(sim_r2p = poll_r2p + rnorm(n(), 0, sigma)) %>%
   group_by(state, seat_name) %>%
   mutate(poll_weight = 1 / var(sim_r2p))
 
@@ -72,6 +72,16 @@ senate_swing_model_data <- list(
   last_r2p = senate_election_data %>% pull(last_r2p),
   midterm = as.numeric(senate_election_data %>% pull(midterm)),
   incumbent_running = senate_election_data %>% pull(incumbent_running),
+  region = case_when(senate_election_data$region == "Deep South" ~ 1,
+                     senate_election_data$region == "Great Lakes" ~ 2,
+                     senate_election_data$region == "Great Plains" ~ 3,
+                     senate_election_data$region == "Mid-Atlantic" ~ 4,
+                     senate_election_data$region == "Mountain West" ~ 5,
+                     senate_election_data$region == "New England" ~ 6,
+                     senate_election_data$region == "Pacific Coast" ~ 7,
+                     senate_election_data$region == "South Atlantic" ~ 8,
+                     senate_election_data$region == "Southwest" ~ 9,
+                     senate_election_data$region == "Upper South" ~ 10),
   natl_r2p_change = senate_election_data %>% pull(natl_r2p_change),
   last_pres_r2p = senate_election_data %>% pull(last_pres_r2p),
   contested_last = as.numeric(senate_election_data %>% pull(contested_last)),
@@ -83,6 +93,16 @@ senate_swing_model_data <- list(
   natl_r2p_oot_sd = sqrt(natl_r2p_change_oot_var),
   natl_r2p_last_oot = senate_2026_data %>% pull(last_natl_r2p),
   incumbent_running_oot = senate_2026_data %>% pull(incumbent_running),
+  region_oot = case_when(senate_2026_data$region == "Deep South" ~ 1,
+                         senate_2026_data$region == "Great Lakes" ~ 2,
+                         senate_2026_data$region == "Great Plains" ~ 3,
+                         senate_2026_data$region == "Mid-Atlantic" ~ 4,
+                         senate_2026_data$region == "Mountain West" ~ 5,
+                         senate_2026_data$region == "New England" ~ 6,
+                         senate_2026_data$region == "Pacific Coast" ~ 7,
+                         senate_2026_data$region == "South Atlantic" ~ 8,
+                         senate_2026_data$region == "Southwest" ~ 9,
+                         senate_2026_data$region == "Upper South" ~ 10),
   last_pres_r2p_oot = senate_2026_data %>% pull(last_pres_r2p),
   contested_last_oot = as.numeric(senate_2026_data %>% pull(contested_last)),
   N_oot = nrow(senate_2026_data)
@@ -93,7 +113,7 @@ senate_swing_model_fit <- senate_swing_model$sample(
   data = senate_swing_model_data, seed = 2026, chains = 4, iter_warmup = 500, iter_sampling = 2500, 
   parallel_chains = 4, refresh = 500
 )
-print(senate_swing_model_fit, max_rows = 45)
+print(senate_swing_model_fit, max_rows = 50)
 senate_swing_posterior <- as_tibble(senate_swing_model_fit$draws(format = "df"))
 n_sims <- nrow(senate_swing_posterior)
 
