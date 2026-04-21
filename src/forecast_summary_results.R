@@ -139,6 +139,25 @@ house_district_posterior_summary_stats %>%
          `95th percentile` = pct_95) %>%
   print(n = Inf)
 
+## Latest House forecast
+house_forecast_timeline %>%
+  tail(2)
+
+## Senate state-level forecasts for presentation
+senate_state_posterior_summary_stats %>%
+  mutate(r_prob = percent(r_prob, accuracy = 1),
+         pct_05 = percent(pct_05, accuracy = 0.1),
+         avg = percent(avg, accuracy = 0.1),
+         pct_95 = percent(pct_95, accuracy = 0.1)) %>%
+  ungroup() %>%
+  select(State = state, Class = seat_name, `Prob(R)` = r_prob, `5th percentile` = pct_05, Average = avg, 
+         `95th percentile` = pct_95) %>%
+  print(n = Inf)
+
+## Latest Senate forecast
+senate_forecast_timeline %>%
+  tail(3)
+
 ## Joint probability distribution of House and Senate majorities
 senate_seat_sims %>% 
   mutate(senate_maj = ifelse(rep >= 50, "Republican", "Democratic")) %>%
