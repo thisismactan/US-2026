@@ -261,3 +261,9 @@ house_seat_sims <- house_district_posterior %>%
   group_by(sim_id) %>%
   summarise(rep = sum(r2p_pred > 0.5),
             dem = sum(r2p_pred <= 0.5))
+
+# Save the district-level posterior draws
+house_district_posterior %>%
+  arrange(state, seat_number, sim_id) %>%
+  select(state, seat_number, sim_id, r2p_pred) %>%
+  write_csv("output/house_district_posterior.csv")

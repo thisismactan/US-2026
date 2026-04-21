@@ -152,3 +152,8 @@ senate_seat_sims <- senate_state_posterior %>%
   summarise(rep = sum(r2p > 0.5) + 31,
             dem = sum((r2p <= 0.5) & state != "Nebraska") + 34,
             ind = sum((r2p <= 0.5) & state == "Nebraska"))
+
+senate_state_posterior %>%
+  arrange(state, seat_name, sim_id) %>%
+  select(state, seat_name, sim_id, r2p_pred = r2p) %>%
+  write_csv("output/senate_state_posterior.csv")
