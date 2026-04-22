@@ -27,7 +27,6 @@ generic_ballot_polls_2026 <- house_polls_2026_raw %>%
          method_weight = case_when(methodology %>% str_detect("Opt-In") ~ 0.1,
                                    methodology == "Nonprobability Panel" ~ 0.25,
                                    methodology == "Text-to-Web" ~ 0.33,
-                                   is.na(methodology) ~ 0.5,
                                    methodology == "Probability Panel" ~ 0.75,
                                    TRUE ~ 1.0)) %>%
   filter(!is.na(n), !is.na(population), population != "a", !is.na(party)) %>%
@@ -164,7 +163,6 @@ historical_generic_ballot_polls <- read_csv("data/polls/generic_ballot_polls_his
          method_weight = case_when(methodology %>% str_detect("Opt-In") ~ 0.1,
                                    methodology == "Nonprobability Panel" ~ 0.25,
                                    methodology == "Text-to-Web" ~ 0.33,
-                                   is.na(methodology) ~ 0.75,
                                    methodology == "Probability Panel" ~ 0.75,
                                    TRUE ~ 1.0)) %>%
   filter(!is.na(n), !is.na(population), population != "a", party %in% c("dem", "rep")) %>%
@@ -282,7 +280,6 @@ senate_poll_leans_2026 <- senate_polls_2026 %>%
          method_weight = case_when(methodology %>% str_detect("Opt-In") ~ 0.1,
                                    methodology == "Nonprobability Panel" ~ 0.25,
                                    methodology == "Text-to-Web" ~ 0.33,
-                                   is.na(methodology) ~ 0.75,
                                    methodology == "Probability Panel" ~ 0.75,
                                    TRUE ~ 1.0),
          party = case_when(party == "DEM" ~ "dem",
@@ -361,7 +358,6 @@ historical_senate_polls_r2p <- read_csv("data/polls/senate_polls_historical.csv"
          method_weight = case_when(methodology %>% str_detect("Opt-In") ~ 0.1,
                                    methodology == "Nonprobability Panel" ~ 0.25,
                                    methodology == "Text-to-Web" ~ 0.33,
-                                   is.na(methodology) ~ 0.5,
                                    methodology == "Probability Panel" ~ 0.75,
                                    TRUE ~ 1.0),
          party = case_when(party == "DEM" ~ "dem",
@@ -477,7 +473,6 @@ house_district_leans_2026 <- house_polls_2026_raw %>%
          method_weight = case_when(methodology %>% str_detect("Opt-In") ~ 0.1,
                                    methodology == "Nonprobability Panel" ~ 0.25,
                                    methodology == "Text-to-Web" ~ 0.33,
-                                   is.na(methodology) ~ 0.5,
                                    methodology == "Probability Panel" ~ 0.75,
                                    TRUE ~ 1.0),
          party = case_when(party == "DEM" ~ "dem",
