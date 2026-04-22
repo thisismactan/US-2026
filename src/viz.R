@@ -11,7 +11,6 @@ change_matrix %>%
   group_by(id) %>%
   arrange(id, days) %>%
   mutate(total_change = cumsum(change)) %>%
-  filter(!any(abs(total_change) > 0.20)) %>%
   ggplot(aes(x = days, y = 100 * total_change, group = id)) +
   geom_line(alpha = 0.01) +
   labs(title = "Posterior predictive distribution of generic ballot average given today's polling",
