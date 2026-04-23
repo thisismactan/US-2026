@@ -3,4 +3,4 @@ The public opinion polls that form the primary basis for day-to-day changes in t
 
 I am grateful to Richard McElreath, director of the Max Planck Institute for Evolutionary Anthropology in Leipzig and one of the world's preeminent evangelists for applied Bayesian statistics. He doesn't know who I am, but without the lectures he has posted to [his YouTube channel](https://www.youtube.com/@rmcelreath) my understanding of Bayesian statistics and the Stan programming language would not be anywhere near sufficient to undertake a project like this.
 
-Lastly, I thank Jeremy Arnold, Scott Borden, Henry Brice, and Pete Kruger for all their helpful feedback.
+Lastly, I thank Jeremy Arnold, Scott Borden, Henry Brice, Pete Kruger, and Tom Robinson for all their helpful feedback.
