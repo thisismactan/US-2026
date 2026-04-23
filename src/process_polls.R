@@ -89,12 +89,17 @@ generic_ballot_averages_2026_smoothed <- generic_ballot_averages_2026 %>%
          sd = rollmeanr(sd, k = 5, na.pad = TRUE),
          se = sd / sqrt(eff_n)) 
 
+generic_ballot_averages_2026_smoothed %>%
+  na.omit() %>%
+  mutate(avg = 2 * avg - 1) %>%
+  write_csv("output/generic_ballot_margin_averages_2026_smoothed.csv")
+
 ### House effect estimation
 pollster_codes <- generic_ballot_polls_2026 %>%
   group_by(pollster) %>%
   summarise(n = n()) %>%
   arrange(desc(n)) %>%
-  mutate(pollster_code = 1:n())
+  mutate(pollster_code = 1:n()) 
 
 house_effect_tbl <- generic_ballot_polls_2026 %>%
   select(poll_id, pollster, methodology, partisan, population, median_date, party, r2p) %>%
