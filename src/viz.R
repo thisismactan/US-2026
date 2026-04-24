@@ -23,6 +23,28 @@ change_matrix %>%
   geom_histogram(binwidth = 1) +
   scale_x_continuous()
 
+# Generic ballot polling
+generic_ballot_averages_2026_smoothed %>%
+  mutate(margin = 2 * avg - 1,
+         margin_upper = margin + 1.645 * 2 * se,
+         margin_lower = margin - 1.645 * 2 * se) %>%
+  na.omit() %>%
+  ggplot(aes(x = avg_date, y = 100 * margin)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = election_date_2026, linetype = 2) +
+  geom_line(col = "red") +
+  geom_ribbon(aes(ymin = 100 * margin_lower, ymax = 100 * margin_upper),
+              fill = "red", alpha = 0.2) +
+  geom_point(data = generic_ballot_polls_2026 %>%
+               mutate(margin = 2 * r2p - 1) %>%
+               filter(party == "rep"),
+             aes(x = end_date, y = 100 * margin), size = 1, col = "red", alpha = 0.5) +
+  scale_x_date(labels = date_format("%b %Y"), limits = as.Date(c("2025-01-01", "2026-12-01")),
+               breaks = "2 months") +
+  scale_y_continuous(labels = label_number(style_positive = "plus", style_negative = "minus")) +
+  labs(title = "Generic ballot polls", x = "Date", y = "Republican 2-party margin (pp)")
+  
+
 # National House popular vote
 natl_r2p_sims %>%
   ggplot(aes(x = natl_r2p, y = after_stat(count) / nrow(natl_r2p_sims))) +

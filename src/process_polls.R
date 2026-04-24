@@ -91,7 +91,9 @@ generic_ballot_averages_2026_smoothed <- generic_ballot_averages_2026 %>%
 
 generic_ballot_averages_2026_smoothed %>%
   na.omit() %>%
-  mutate(avg = 2 * avg - 1) %>%
+  mutate(margin = 2 * avg - 1,
+         upper = margin + 1.645 * 2 * se,
+         lower = margin - 1.645 * 2 * se) %>%
   write_csv("output/generic_ballot_margin_averages_2026_smoothed.csv")
 
 ### House effect estimation
