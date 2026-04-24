@@ -139,10 +139,6 @@ house_district_posterior_summary_stats %>%
          `95th percentile` = pct_95) %>%
   print(n = Inf)
 
-## Latest House forecast
-house_forecast_timeline %>%
-  tail(2)
-
 ## Senate state-level forecasts for presentation
 senate_state_posterior_summary_stats %>%
   mutate(r_prob = percent(r_prob, accuracy = 1),
@@ -153,6 +149,10 @@ senate_state_posterior_summary_stats %>%
   select(State = state, Class = seat_name, `Prob(R)` = r_prob, `5th percentile` = pct_05, Average = avg, 
          `95th percentile` = pct_95) %>%
   print(n = Inf)
+
+## Latest House forecast
+house_forecast_timeline %>%
+  tail(2)
 
 ## Latest Senate forecast
 senate_forecast_timeline %>%
