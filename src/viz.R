@@ -143,3 +143,4 @@ senate_seat_sims %>%
   labs(title = "Republican Senate seat conditional forecasts", subtitle = "For varying shares of national House popular vote",
        x = "Republican share of two-party national House popular vote", y = "Republican forecasted Senate seats",
        caption = today() %>% format("%B %d, %Y"))
+
