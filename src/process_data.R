@@ -116,9 +116,7 @@ house_election_data <- house_district_r2p %>%
   left_join(house_incumbents_running %>% select(year, state, seat_number, incumbent_running, redistricted), 
             by = c("year", "state", "seat_number")) %>%
   left_join(cd_pres_results, by = c("year", "state", "seat_number")) %>%
-  filter(contested) %>%
-  filter(!is.na(natl_r2p_change), !is.na(r2p_change)) %>%
-  filter(year >= 2010) %>%
+  filter(contested, !is.na(natl_r2p_change), !is.na(r2p_change), year >= 2010, r2p < 0.95) %>%
   ungroup() %>%
   mutate(logit_r2p = log(r2p / (1 - r2p))) %>%
   left_join(historical_top_two_primary %>% select(-midterm), by = c("year", "state", "seat_number")) %>%
