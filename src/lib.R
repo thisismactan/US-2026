@@ -13,6 +13,8 @@ library(rstan)
 
 # Other nonsense
 library(geomViolinDiscrete)
+default_palette <- "Okabe-Ito" # let's do our little part to not be ableist here
+showtext::showtext_auto()
 
 party_colors <- c("rep" = "red",
                   "dem" = "blue")
