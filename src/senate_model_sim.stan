@@ -21,12 +21,21 @@ data {
   vector[N_oot] contested_last_oot;
   array[N_oot] int incumbent_running_oot;
   array[N_oot] int region_oot;
+  // Conditional data
+  int<lower=0> N_cond;
+  vector[N_cond] last_r2p_cond;
+  vector[N_cond] midterm_cond;
+  vector[N_cond] natl_r2p_last_cond;
+  vector[N_cond] natl_r2p_change_cond;
+  vector[N_cond] last_pres_r2p_cond;
+  vector[N_cond] contested_last_cond;
+  array[N_cond] int incumbent_running_cond;
+  array[N_cond] int region_cond;
 }
 
 // Parameters
 parameters {
   vector[3] a_inc;
-  vector[10] a_region;
   vector[3] b1_inc;
   vector[3] b2_inc;
   vector[3] b3_inc;
@@ -45,7 +54,6 @@ parameters {
 model {
   vector[N_e] mu;
   a_midterm ~ normal(0, 0.1);
-  a_region ~ normal(0, 0.05);
   b1_midterm ~ normal(0, 0.5);
   b2_midterm ~ normal(0, 0.5);
   b3_midterm ~ normal(0, 0.5);
@@ -61,7 +69,7 @@ model {
   natl_r2p_oot ~ normal(natl_r2p_oot_mean, natl_r2p_oot_sd);
   
   for (i in 1:N_e) {
-    mu[i] = a_inc[incumbent_running[i]] + a_region[region[i]] + a_midterm * midterm[i] +
+    mu[i] = a_inc[incumbent_running[i]] + a_midterm * midterm[i] +
       (b1_inc[incumbent_running[i]] + b1_midterm * midterm[i]) * last_r2p[i] * contested_last[i] +
       (b2_inc[incumbent_running[i]] + b2_midterm * midterm[i]) * natl_r2p_change[i] +
       (b3_inc[incumbent_running[i]] + b3_midterm * midterm[i]) * (1 - b3_contested_last * contested_last[i]) * last_pres_r2p[i];
@@ -77,10 +85,12 @@ generated quantities {
   vector[N_oot] mu_oot;
   vector[N_oot] natl_r2p_change_oot;
   vector[N_oot] r2p_pred_oot;
+  vector[N_cond] mu_cond;
+  vector[N_cond] r2p_pred_cond;
   
   // In-sample
   for (i in 1:N_e) {
-    mu_pred[i] = a_inc[incumbent_running[i]] + a_region[region[i]] + a_midterm * midterm[i] +
+    mu_pred[i] = a_inc[incumbent_running[i]] + a_midterm * midterm[i] +
       (b1_inc[incumbent_running[i]] + b1_midterm * midterm[i]) * last_r2p[i] * contested_last[i] +
       (b2_inc[incumbent_running[i]] + b2_midterm * midterm[i]) * natl_r2p_change[i] +
       (b3_inc[incumbent_running[i]] + b3_midterm * midterm[i]) * (1 - b3_contested_last * contested_last[i]) * last_pres_r2p[i];
@@ -89,10 +99,18 @@ generated quantities {
   // OOT
   for (i in 1:N_oot) {
     natl_r2p_change_oot[i] = natl_r2p_oot - natl_r2p_last_oot[i];
-    mu_oot[i] = a_inc[incumbent_running_oot[i]] + a_region[region_oot[i]] + a_midterm * midterm_oot[i] +
+    mu_oot[i] = a_inc[incumbent_running_oot[i]] + a_midterm * midterm_oot[i] +
       (b1_inc[incumbent_running_oot[i]] + b1_midterm * midterm_oot[i]) * last_r2p_oot[i] * contested_last_oot[i] +
       (b2_inc[incumbent_running_oot[i]] + b2_midterm * midterm_oot[i]) * natl_r2p_change_oot[i] +
       (b3_inc[incumbent_running_oot[i]] + b3_midterm * midterm_oot[i]) * (1 - b3_contested_last * contested_last_oot[i]) * last_pres_r2p_oot[i];
     r2p_pred_oot[i] = normal_rng(mu_oot[i], sigma);
+  }
+  // Conditional
+  for (i in 1:N_cond) {
+    mu_cond[i] = a_inc[incumbent_running_cond[i]] + a_midterm * midterm_cond[i] +
+      (b1_inc[incumbent_running_cond[i]] + b1_midterm * midterm_cond[i]) * last_r2p_cond[i] * contested_last_cond[i] +
+      (b2_inc[incumbent_running_cond[i]] + b2_midterm * midterm_cond[i]) * natl_r2p_change_cond[i] +
+      (b3_inc[incumbent_running_cond[i]] + b3_midterm * midterm_cond[i]) * (1 - b3_contested_last * contested_last_cond[i]) * last_pres_r2p_cond[i];
+    r2p_pred_cond[i] = normal_rng(mu_cond[i], sigma);
   }
 }

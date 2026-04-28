@@ -105,6 +105,11 @@ natl_r2p_var_model_fit <- natl_r2p_var_model$sample(
 natl_r2p_change_oot_var <- (natl_r2p_var_model_fit$draws(format = "df")$sigma %>% mean())^2 + generic_ballot_var
 natl_r2p_change_oot_mean <- generic_ballot_mean - (house_natl_r2p %>% filter(year == 2024) %>% pull(natl_r2p))
 
+# Conditional distribution data
+r2p_margin_diffs <- seq(-0.1, 0.1, by = 0.01)
+house_2026_conditional_data <- house_2026_data[rep(seq_len(nrow(house_2026_data)), each = length(r2p_margin_diffs)), ] %>%
+  mutate(natl_r2p_change = rep(r2p_margin_diffs, 435) / 2 + generic_ballot_mean - (house_natl_r2p %>% tail(1) %>% pull(natl_r2p)))
+
 # National swing model
 house_model_data <- list(
   # Historical data
@@ -134,7 +139,20 @@ house_model_data <- list(
   region_oot = house_2026_data %>% pull(region) %>% factor() %>% as.integer(),
   last_pres_r2p_oot = house_2026_data %>% pull(last_pres_r2p),
   contested_last_oot = as.numeric(house_2026_data %>% pull(contested_last)),
-  N_oot = nrow(house_2026_data)
+  N_oot = nrow(house_2026_data),
+  # Conditional distributions
+  last_r2p_cond = house_2026_conditional_data %>% pull(last_r2p),
+  midterm_cond = as.numeric((house_2026_conditional_data %>% pull(year) %% 4) == 2),
+  redistricted_cond = as.numeric(house_2026_conditional_data %>% pull(redistricted)),
+  natl_r2p_change_cond = house_2026_conditional_data$natl_r2p_change,
+  incumbent_running_cond = case_when(house_2026_conditional_data$incumbent_running == "Both (redistricting)" ~ 1,
+                                     house_2026_conditional_data$incumbent_running == "DEM" ~ 2,
+                                     house_2026_conditional_data$incumbent_running == "None" ~ 3,
+                                     house_2026_conditional_data$incumbent_running == "REP" ~ 4),
+  region_cond = house_2026_conditional_data %>% pull(region) %>% factor() %>% as.integer(),
+  last_pres_r2p_cond = house_2026_conditional_data %>% pull(last_pres_r2p),
+  contested_last_cond = as.numeric(house_2026_conditional_data %>% pull(contested_last)),
+  N_cond = nrow(house_2026_conditional_data)
 )
 
 house_model <- cmdstan_model("src/house_model_sim.stan")
@@ -227,6 +245,42 @@ house_district_posterior <- house_posterior %>%
   mutate(r2p_pred = case_when(!contested_rep ~ 0,
                               !contested_dem ~ 1,
                               TRUE ~ r2p_pred))
+
+## Do the conditionals
+house_conditional_posteriors <- house_posterior %>%
+  select(starts_with("r2p_pred_cond")) %>%
+  t() %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  bind_cols(house_2026_conditional_data) %>%
+  melt(measure.vars = paste0("V", as.character(1:n_sims)), variable.name = "sim_id", value.name = "r2p_swing_pred") %>%
+  as_tibble() %>%
+  mutate(sim_id = as.integer(sim_id),
+         margin_diff = rep(rep(r2p_margin_diffs, 435), n_sims)) %>%
+  select(state, seat_number, sim_id, margin_diff, r2p_swing_pred, contested_rep, contested_dem) %>%
+  group_by(state, seat_number, margin_diff) %>%
+  mutate(r2p_swing_weight = 1 / var(r2p_swing_pred)) %>%
+  ungroup() %>%
+  left_join(house_district_level_poll_posterior, by = c("state", "seat_number", "sim_id")) %>%
+  left_join(top2_primary_posterior, by = c("state", "seat_number", "sim_id")) %>%
+  mutate(r2p_district_poll_pred = ifelse(is.na(r2p_district_poll_pred), 0, r2p_district_poll_pred + margin_diff / 2),
+         r2p_district_poll_weight = ifelse(is.na(r2p_district_poll_weight), 0, r2p_district_poll_weight),
+         r2p_top2_pred = ifelse(is.na(r2p_top2_pred), 0, r2p_top2_pred),
+         r2p_top2_weight = 0,
+         r2p_pred = (r2p_swing_weight * r2p_swing_pred + r2p_district_poll_weight * r2p_district_poll_pred + r2p_top2_weight * r2p_top2_pred) /
+           (r2p_swing_weight + r2p_district_poll_weight + r2p_top2_weight)) %>%
+  mutate(r2p_pred = case_when(!contested_rep ~ 0,
+                              !contested_dem ~ 1,
+                              TRUE ~ r2p_pred)) %>%
+  group_by(sim_id, margin_diff) %>%
+  summarise(r_seats = sum(r2p_pred > 0.5)) %>%
+  group_by(r_seats, margin_diff) %>%
+  summarise(prob = n() / n_sims) %>%
+  ungroup() %>%
+  arrange(margin_diff, r_seats)
+
+house_conditional_posteriors %>%
+  write_csv("output/house_seats_conditional_posteriors.csv")
 
 house_district_posterior_summary_stats <- house_district_posterior %>%
   group_by(year, state, seat_number) %>%
