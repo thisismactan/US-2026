@@ -144,3 +144,25 @@ senate_seat_sims %>%
        x = "Republican share of two-party national House popular vote", y = "Republican forecasted Senate seats",
        caption = today() %>% format("%B %d, %Y"))
 
+# Conditional distributions
+house_conditional_posteriors %>%
+  mutate(margin_diff = 100 * margin_diff) %>%
+  ggplot(aes(x = r_seats, y = prob)) +
+  facet_wrap(~margin_diff, nrow = 7, dir = "v") +
+  geom_vline(xintercept = 435 / 2) +
+  geom_col(col = "black", fill = "red", alpha = 0.5) +
+  scale_y_continuous(labels = percent_format()) +
+  labs(title = "House seat posterior conditional on House generic ballot error",
+       x = "Republican House seats", y = "Probability")
+
+senate_conditional_posteriors %>%
+  mutate(margin_diff = 100 * margin_diff) %>%
+  filter(party != "ind") %>%
+  ggplot(aes(x = seats, y = prob)) +
+  facet_wrap(~margin_diff, nrow = 7, dir = "v") +
+  geom_vline(xintercept = 50) +
+  geom_col(aes(fill = party), col = "black", alpha = 0.5, position = "identity") +
+  scale_fill_manual(name = "Party", values = party_colors, labels = party_labels) +
+  scale_y_continuous(labels = percent_format()) +
+  labs(title = "Senate seat posterior conditional on House generic ballot error",
+       x = "Republican Senate seats", y = "Probability")
