@@ -32,7 +32,7 @@ generic_ballot_averages_2026_smoothed %>%
   ggplot(aes(x = avg_date, y = 100 * margin)) +
   geom_hline(yintercept = 0) +
   geom_vline(xintercept = election_date_2026, linetype = 2) +
-  geom_line(col = "red") +
+  geom_line(col = "red", linewidth = 1) +
   geom_ribbon(aes(ymin = 100 * margin_lower, ymax = 100 * margin_upper),
               fill = "red", alpha = 0.2) +
   geom_point(data = generic_ballot_polls_2026 %>%
