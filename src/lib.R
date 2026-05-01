@@ -17,10 +17,12 @@ default_palette <- "Okabe-Ito" # let's do our little part to not be ableist here
 showtext::showtext_auto()
 
 party_colors <- c("rep" = "red",
-                  "dem" = "blue")
+                  "dem" = "blue",
+                  "ind" = "#888888")
 
 party_labels <- c("rep" = "Republican",
-                  "dem" = "Democratic")
+                  "dem" = "Democratic",
+                  "ind" = "Independent")
 
 logit <- function(p) {
   return(log(p / (1 - p)))

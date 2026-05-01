@@ -47,6 +47,7 @@ generic_ballot_averages_2026_smoothed %>%
   labs(title = "Generic ballot polls", x = "Date", y = "Republican 2-party margin (pp)",
        caption = "Shaded region = 90% CI")
   
+ggsave("output/visualizations/generic_ballot_average.png", width = 10, height = 5, dpi = 100)
 
 # National House popular vote
 natl_r2p_sims %>%
@@ -83,10 +84,25 @@ house_district_posterior %>%
   scale_colour_manual(name = "Party", values = party_colors, labels = party_labels) +
   scale_fill_manual(name = "Party", values = party_colors, labels = party_labels) +
   labs(title = "2026 House forecast", x = "House seats won", y = "Probability",
-       subtitle = today() %>% format("%B %d, %Y"))
+       subtitle = today() %>% format("%B %d, %Y"), caption = "218 seats needed for majority")
 
 ggsave("output/visualizations/house_forecast.png", width = 10, height = 5, dpi = 100)
 
+## House forecast timeline
+house_forecast_timeline %>%
+  ggplot(aes(x = forecast_date, y = prob_majority, col = party)) +
+  geom_vline(xintercept = election_date_2026, linetype = 2) +
+  geom_line(linewidth = 1) +
+  scale_x_date(labels = date_format("%b %Y"), limits = as.Date(c("2026-04-01", "2026-12-01")),
+               breaks = "1 month") +
+  scale_y_continuous(labels = percent_format(), breaks = (0:5) / 5, limits = c(0, 1)) +
+  scale_colour_manual(name = "Party", labels = party_labels, values = party_colors) +
+  theme(axis.text.x = element_text(angle = 90), legend.position = "bottom") +
+  labs(title = "House forecast over time - majority probability", x = "Date",
+       y = "Probability of House majority")
+
+ggsave("output/visualizations/house_forecast_timeline.png", width = 10, height = 5, dpi = 100)
+  
 
 ## Scatterplot - Republican vote share vs. Republican seats
 house_district_posterior %>%
@@ -122,14 +138,57 @@ senate_seat_sims %>%
                summarise(avg = mean(seats)),
              aes(xintercept = avg, col = party), linewidth = 1, show.legend = FALSE) +
   geom_col(aes(fill = party, col = party), alpha = 0.5, show.legend = FALSE) +
-  scale_x_continuous(breaks = seq(30, 70, by = 2), limits = c(36, 64)) +
+  scale_x_continuous(breaks = seq(30, 70, by = 2), limits = c(34, 66)) +
   scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
   scale_colour_manual(name = "Party", values = party_colors, labels = party_labels) +
   scale_fill_manual(name = "Party", values = party_colors, labels = party_labels) +
   labs(title = "2026 Senate forecast", x = "Senate seats held post-election", y = "Probability",
-       subtitle = today() %>% format("%B %d, %Y"))
+       subtitle = today() %>% format("%B %d, %Y"),
+       caption = "51 seats or 50 seats + VP needed for majority")
 
 ggsave("output/visualizations/senate_forecast.png", width = 10, height = 5, dpi = 100)
+
+## Senate forecast timeline
+senate_forecast_timeline %>%
+  ggplot(aes(x = forecast_date, y = prob_majority, col = party)) +
+  geom_vline(xintercept = election_date_2026, linetype = 2) +
+  geom_line(linewidth = 1) +
+  scale_x_date(labels = date_format("%b %Y"), limits = as.Date(c("2026-04-01", "2026-12-01")),
+               breaks = "1 month") +
+  scale_y_continuous(labels = percent_format(), breaks = (0:5) / 5, limits = c(0, 1)) +
+  scale_colour_manual(name = "Party", labels = party_labels, values = party_colors) +
+  theme(axis.text.x = element_text(angle = 90), legend.position = "bottom") +
+  labs(title = "Senate forecast over time - majority probability", x = "Date",
+       y = "Probability of Senate majority")
+
+ggsave("output/visualizations/senate_forecast_timeline.png", width = 10, height = 5, dpi = 100)
+
+## Senate antfarm
+antfarm_states <- c("Nebraska", "Florida", "Texas", "Iowa", "Alaska", "Ohio", "Michigan", "North Carolina",
+                    "Maine", "Georgia", "Minnesota", "New Hampshire", "New Mexico", "Virginia", "Illinois")
+
+senate_state_forecast_timeline %>%
+  select(forecast_date, state, rep = r_prob) %>%
+  mutate(dem = ifelse(state != "Nebraska", 1 - rep, 0),
+         ind = ifelse(state == "Nebraska", 1 - rep, 0)) %>%
+  melt(measure.vars = c("dem", "rep", "ind"), variable.name = "party", value.name = "prob") %>%
+  filter(state %in% antfarm_states) %>%
+  as_tibble() %>%
+  ggplot(aes(x = forecast_date, y = prob, col = party)) +
+  facet_wrap(~state, nrow = 5) +
+  geom_vline(xintercept = election_date_2026, linetype = 2) +
+  geom_line(data = senate_forecast_timeline, aes(y = prob_majority), alpha = 0.2, linewidth = 0.8) +
+  geom_line(linewidth = 0.8) +
+  scale_x_date(labels = date_format("%b"), limits = as.Date(c("2026-04-01", "2026-12-01")),
+               breaks = "2 months") +
+  scale_y_continuous(labels = percent_format(), breaks = (0:2) / 2, limits = c(0, 1)) +
+  scale_colour_manual(name = "Party", labels = party_labels, values = party_colors) +
+  theme(axis.text.x = element_text(angle = 90, size = 6), axis.text.y = element_text(size = 6),
+        legend.position = "bottom") +
+  labs(title = "Senate antfarm", x = "Date", y = "Win probability", subtitle = "15 most competitive states",
+       caption = "Senate majority probability shown in lighter colors")
+
+ggsave("output/visualizations/senate_antfarm.png", width = 10, height = 8, dpi = 100)
 
 ## Scatterplot - Republican vote share vs. Republican seats
 senate_seat_sims %>%
