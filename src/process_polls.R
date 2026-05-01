@@ -57,7 +57,6 @@ election_date_2026 <- as.Date("2026-11-03")
 poll_average_dates <- seq(as.Date("2024-11-05"), min(today(), election_date_2026))
 poll_average_df_list <- vector("list", length(poll_average_dates))
 
-start_time <- Sys.time()
 for(i in seq_along(poll_average_dates)) {
   filtered_polls <- generic_ballot_polls_2026 %>%
     filter(end_date <= poll_average_dates[i],
@@ -80,7 +79,6 @@ for(i in seq_along(poll_average_dates)) {
 }
 generic_ballot_averages_2026 <- bind_rows(poll_average_df_list) %>%
   mutate(year = 2026)
-print(Sys.time() - start_time)
 
 generic_ballot_averages_2026_smoothed <- generic_ballot_averages_2026 %>%
   arrange(avg_date) %>%
@@ -188,7 +186,6 @@ poll_average_dates <- seq(as.Date("2016-11-08"), as.Date("2024-11-05"))
 poll_average_df_list <- vector("list", length(poll_average_dates))
 house_election_dates <- as.Date(c("2018-11-06", "2020-11-03", "2022-11-08", "2024-11-05"))
 
-start_time <- Sys.time()
 for(i in seq_along(poll_average_dates)) {
   next_election_date <- min(house_election_dates[house_election_dates >= poll_average_dates[i]])
   filtered_polls <- historical_generic_ballot_polls %>%
@@ -213,7 +210,6 @@ for(i in seq_along(poll_average_dates)) {
 }
 historical_generic_ballot_averages <- bind_rows(poll_average_df_list) %>%
   mutate(year = year(election_date))
-print(Sys.time() - start_time)
 
 historical_generic_ballot_averages_smoothed <- historical_generic_ballot_averages %>%
   arrange(avg_date) %>%
@@ -406,7 +402,6 @@ poll_average_dates <- seq(as.Date("2016-11-08"), as.Date("2024-11-05"))
 poll_average_df_list <- vector("list", length(poll_average_dates))
 senate_election_dates <- as.Date(c("2018-11-06", "2020-11-03", "2022-11-08", "2024-11-05"))
 
-start_time <- Sys.time()
 for(i in seq_along(poll_average_dates)) {
   next_election_date <- min(senate_election_dates[senate_election_dates >= poll_average_dates[i]])
   filtered_polls <- historical_senate_polls_r2p %>%
@@ -430,7 +425,6 @@ for(i in seq_along(poll_average_dates)) {
 }
 senate_average_leans <- bind_rows(poll_average_df_list) %>%
   mutate(year = year(election_date))
-print(Sys.time() - start_time)
 
 senate_polling_averages <- senate_average_leans %>%
   left_join(historical_generic_ballot_averages_smoothed %>%

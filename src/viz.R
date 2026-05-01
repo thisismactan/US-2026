@@ -32,17 +32,20 @@ generic_ballot_averages_2026_smoothed %>%
   ggplot(aes(x = avg_date, y = 100 * margin)) +
   geom_hline(yintercept = 0) +
   geom_vline(xintercept = election_date_2026, linetype = 2) +
-  geom_line(col = "red", linewidth = 1) +
+  geom_line(col = "black", linewidth = 1) +
   geom_ribbon(aes(ymin = 100 * margin_lower, ymax = 100 * margin_upper),
-              fill = "red", alpha = 0.2) +
+              fill = "black", alpha = 0.2) +
   geom_point(data = generic_ballot_polls_2026 %>%
                mutate(margin = 2 * r2p - 1) %>%
                filter(party == "rep"),
-             aes(x = end_date, y = 100 * margin), size = 1, col = "red", alpha = 0.5) +
+             aes(x = end_date, y = 100 * margin), size = 1, col = "black", alpha = 0.5) +
   scale_x_date(labels = date_format("%b %Y"), limits = as.Date(c("2025-01-01", "2026-12-01")),
                breaks = "2 months") +
-  scale_y_continuous(labels = label_number(style_positive = "plus", style_negative = "minus")) +
-  labs(title = "Generic ballot polls", x = "Date", y = "Republican 2-party margin (pp)")
+  scale_y_continuous(labels = label_number(style_positive = "plus", style_negative = "minus"),
+                     limits = c(-20, 20)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(title = "Generic ballot polls", x = "Date", y = "Republican 2-party margin (pp)",
+       caption = "Shaded region = 90% CI")
   
 
 # National House popular vote
