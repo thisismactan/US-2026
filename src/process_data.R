@@ -159,7 +159,7 @@ historical_national_presidential_results <- historical_presidential_results %>%
   group_by(year) %>%
   mutate(votes = votes / sum(votes)) %>%
   spread(party, votes) %>%
-  mutate(natl_margin = Democratic - Republican) %>%
+  mutate(natl_margin = Republican - Democratic) %>%
   dplyr::select(year, natl_margin)
 
 presidential_leans <- historical_presidential_results %>%
@@ -176,13 +176,18 @@ presidential_leans <- historical_presidential_results %>%
 
 historical_senate_incumbents <- read_csv("data/historical_senate_incumbents.csv")
 
+ind_dems <- c("EVAN MCMULLIN", "DAN OSBORN", "ANGUS KING", "ANGUS S. KING, JR.", "BERNIE SANDERS")
+
 historical_senate_results <- read_csv("data/1976-2024-senate.csv", lazy = FALSE) %>%
-  filter(year >= 2010, stage == "gen", grepl("democrat|republican", party_simplified, ignore.case = TRUE)) %>%
+  filter(grepl("democrat|republican", party_simplified, ignore.case = TRUE) | 
+           candidate %in% ind_dems,
+         year >= 2010, stage == "gen") %>%
   mutate(state = str_to_title(state)) %>%
-  dplyr::select(year, state, special, party = party_simplified, candidatevotes) %>%
+  dplyr::select(year, state, special, party = party_simplified, candidate, candidatevotes) %>%
   left_join(historical_senate_incumbents, by = c("state", "year", "special")) %>%
   mutate(party = case_when(grepl("republican", party, ignore.case = TRUE) ~ "rep",
-                           grepl("democrat", party, ignore.case = TRUE) ~ "dem")) %>%
+                           grepl("democrat", party, ignore.case = TRUE) ~ "dem",
+                           candidate %in% ind_dems ~ "dem")) %>%
   group_by(year, state, class, special, democrat_running, republican_running, incumbent_running, incumbent_first_elected, party,
            dem_statewide_elected, rep_statewide_elected) %>%
   summarise(party_votes = sum(candidatevotes)) %>%
