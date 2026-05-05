@@ -11,17 +11,29 @@ change_matrix %>%
   group_by(id) %>%
   arrange(id, days) %>%
   mutate(total_change = cumsum(change)) %>%
+  filter(abs(max(total_change)) < 0.1) %>%
+  filter(id %in% 1:100) %>%
   ggplot(aes(x = days, y = 100 * total_change, group = id)) +
-  geom_line(alpha = 0.01) +
-  labs(title = "Posterior predictive distribution of generic ballot average given today's polling",
-       x = "Days", y = "Total change in Republican 2-party vote share (pp)")
+  geom_line(aes(col = factor(id)), alpha = 0.5, show.legend = FALSE) +
+  scale_colour_manual(values = rainbow(100)) +
+  labs(title = "Sample generic ballot average drift trajectories",
+       x = "Days", y = "Total change in Republican 2-party vote share (pp)", caption = "100 samples")
+
+ggsave("output/visualizations/generic_ballot_sample_trajectories.png", width = 10, height = 5, dpi = 100)
 
 change_matrix %>%
   rowSums() %>%
   as.data.frame() %>%
+  filter(abs(`.`) < 0.1) %>%
   ggplot(aes(x = 100 * `.`, y = after_stat(density))) +
-  geom_histogram(binwidth = 1) +
-  scale_x_continuous()
+  geom_histogram(binwidth = 1, col = "black") +
+  scale_x_continuous() +
+  scale_y_continuous(labels = percent_format()) +
+  labs(title = "Generic ballot drift posterior distribution given today's polling",
+       x = "Total change in Republican 2-party share", y = "Probability")
+
+ggsave("output/visualizations/generic_ballot_drift_posterior_distribution.png", width = 10, height = 8, dpi = 100)
+
 
 # Generic ballot polling
 generic_ballot_averages_2026_smoothed %>%
