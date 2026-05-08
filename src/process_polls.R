@@ -325,7 +325,7 @@ senate_average_leans_2026 <- senate_poll_leans_2026 %>%
             sd = sqrt(wtd.var(r2p_lean, weight, normwt = TRUE) * n() / (n() - 1.5)),
             .groups = "drop") %>%
   mutate(se = sd / sqrt(eff_n),
-         avg_date = poll_average_dates[i],
+         avg_date = today(),
          days_to_election = as.numeric(election_date - avg_date))
   
 ## Historical
