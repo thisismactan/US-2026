@@ -1,4 +1,4 @@
-﻿d,state,seat_number,incumbent_running,midterm,redistricted,contested_rep,contested_dem,contested,cand1_name,cand2_name,cand3_name,cand4_name
+﻿year,state,seat_number,incumbent_running,midterm,redistricted,contested_rep,contested_dem,contested,cand1_name,cand2_name,cand3_name,cand4_name
 2026,Alaska,1,REP,TRUE,FALSE,TRUE,TRUE,TRUE,Nick Begich,Matt Schultz,,
 2026,Alabama,1,None,TRUE,FALSE,TRUE,TRUE,TRUE,,,,
 2026,Alabama,2,DEM,TRUE,FALSE,TRUE,TRUE,TRUE,,,,
