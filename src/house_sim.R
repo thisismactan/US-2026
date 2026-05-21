@@ -321,3 +321,47 @@ house_district_posterior %>%
   arrange(state, seat_number, sim_id) %>%
   select(state, seat_number, sim_id, r2p_pred) %>%
   write_csv("output/house_district_posterior.csv")
+
+# District impact on forecast
+house_joint_district_majority_sims <- house_district_posterior %>%
+  select(sim_id, state, seat_number, r2p_pred) %>%
+  left_join(house_seat_sims %>% select(sim_id, dem), by = "sim_id") %>%
+  mutate(district_winner = ifelse(r2p_pred > 0.5, "rep", "dem"),
+         majority_winner = ifelse(dem >= 218, "dem", "rep")) %>%
+  group_by(state, seat_number, district_winner, majority_winner) %>%
+  summarise(n = n()) %>%
+  spread(district_winner, n, fill = 0) %>%
+  melt(measure.vars = c("dem", "rep"), variable.name = "district_winner", value.name = "n") %>%
+  as_tibble() %>%
+  arrange(state, seat_number, district_winner, majority_winner)
+
+house_district_predictive_accuracy_metrics <- house_joint_district_majority_sims %>%
+  left_join(house_district_posterior_summary_stats %>% ungroup() %>% select(state, seat_number, r_prob),
+            by = c("state", "seat_number")) %>%
+  group_by(state, seat_number, r_prob) %>%
+  mutate(dem_dem = (majority_winner == "dem") & (district_winner == "dem"),
+         dem_rep = (majority_winner == "dem") & (district_winner == "rep"),
+         rep_dem = (majority_winner == "rep") & (district_winner == "dem"),
+         rep_rep = (majority_winner == "rep") & (district_winner == "rep")) %>%
+  summarise(tp = sum(n * dem_dem),
+            fp = sum(n * rep_dem),
+            fn = sum(n * dem_rep),
+            tn = sum(n * rep_rep)) %>%
+  mutate(actual_pos = tp + fn,
+         actual_neg = tn + fp,
+         pred_pos = tp + fp,
+         pred_neg = tn + fn) %>%
+  ungroup() %>%
+  mutate(phi = (tp * tn - fp * fn) / sqrt(actual_pos * actual_neg * pred_pos * pred_neg))
+
+house_district_impact <- house_district_predictive_accuracy_metrics %>%
+  mutate(dem_cond = tp / (tp + fp),
+         dem_base = actual_pos / n_sims,
+         rep_cond = tn / (tn + fn),
+         rep_base = actual_neg / n_sims) %>%
+  mutate(dem_cond_increase = dem_cond - dem_base,
+         rep_cond_increase = rep_cond - rep_base,
+         total_cond_increase = dem_cond_increase + rep_cond_increase) %>%
+  select(state, seat_number, r_prob, phi, dem_cond_increase, rep_cond_increase, total_cond_increase)
+
+write_csv(house_district_impact, "output/house_district_impact.csv")

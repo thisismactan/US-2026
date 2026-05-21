@@ -13,6 +13,7 @@ library(rstan)
 
 # Other nonsense
 library(geomViolinDiscrete)
+library(pROC)
 default_palette <- "Okabe-Ito" # let's do our little part to not be ableist here
 showtext::showtext_auto()
 
