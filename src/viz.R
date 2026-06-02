@@ -176,8 +176,12 @@ senate_forecast_timeline %>%
 ggsave("output/visualizations/senate_forecast_timeline.png", width = 10, height = 5, dpi = 100)
 
 ## Senate antfarm
-antfarm_states <- c("Nebraska", "Florida", "Texas", "Iowa", "Alaska", "Ohio", "Michigan", "North Carolina",
-                    "Maine", "Georgia", "Minnesota", "New Hampshire", "New Mexico", "Virginia", "Illinois")
+antfarm_states <- senate_state_posterior_summary_stats %>% 
+  ungroup() %>%
+  mutate(competitiveness = abs(r_prob - 0.5)) %>% 
+  arrange(competitiveness) %>%
+  head(15) %>%
+  pull(state)
 
 senate_state_forecast_timeline %>%
   select(forecast_date, state, rep = r_prob) %>%
