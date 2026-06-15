@@ -166,7 +166,8 @@ n_sims <- nrow(house_posterior)
 
 # Incorporating top-two primaries where applicable
 top2_primary_results_2026 <- read_csv("data/top_two_primary_results_2026.csv") %>%
-  mutate(r_primary = rep_primary / (rep_primary + dem_primary))
+  mutate(r_primary = rep_primary / (rep_primary + dem_primary)) %>%
+  filter(!is.na(r_primary))
 
 top2_primary_data <- list(
   # Dev
