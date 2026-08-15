@@ -506,7 +506,7 @@ house_district_leans_2026 <- house_polls_2026_raw %>%
   mutate(poll_age = as.numeric(today() - median_date),
          r2p_lean = r2p - partisan_lean - generic_ballot_avg,
          weight = method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 3, 1) * sample_size^(0.25) / 
-           (exp((poll_age + 7)^0.1) * ifelse(spread == 0, 3, 1))) %>%
+           (exp((poll_age + 7)^0.4) * ifelse(spread == 0, 3, 1))) %>%
   select(state, seat_number, election_date, poll_id, pollster_id, pollster, sponsor_ids, sponsor_candidate_party, start_date, 
          median_date, end_date, spread, pop = population, n = sample_size, population, tracking, internal, partisan, partisan_lean,
          cand_list, party, weight, r2p_lean, generic_ballot_avg, generic_ballot_eff_n, generic_ballot_sd, generic_ballot_se) %>%

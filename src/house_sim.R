@@ -205,7 +205,7 @@ top2_primary_posterior <- top2_primary_model_fit$draws(format = "df") %>%
   
 # Grab the posterior draws
 ## National Republican 2-party vote share (needed to work out where the district-level polls say things should be)
-district_poll_error_sd <- 0.05
+district_poll_error_sd <- 0.04
 
 house_district_level_poll_posterior <- tibble(
   sim_id = 1:n_sims,
