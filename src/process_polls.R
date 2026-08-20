@@ -448,8 +448,12 @@ house_candlists <- house_2026_data %>%
   summarise(cand_list = paste(candidate, collapse = "|")) %>%
   ungroup()
 
+# Dang independents
+ind_dem_cands <- c("Bill Hill")
+
 house_district_leans_2026 <- house_polls_2026_raw %>%
   filter(stage == "general", state != "US", !str_detect(candidate_name, "Don't know|Neither|Would not vote")) %>%
+  mutate(party = ifelse(candidate_name %in% ind_dem_cands, "DEM", party)) %>%
   group_by(question_id) %>%
   filter(!(any(candidate_name %>% str_detect("Generic"))), party %in% c("REP", "DEM")) %>%
   ungroup() %>%
