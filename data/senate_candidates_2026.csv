@@ -5,7 +5,7 @@ Ohio,Class III,REP,None,DEM,Sherrod Brown,Sherrod,Brown
 Ohio,Class III,REP,None,REP,Jon Husted,Jon,Husted
 Alabama,Class II,REP,None,DEM,Everett Wess,Everett,Wess
 Alabama,Class II,REP,None,REP,Barry Moore,Barry,Moore
-Alaska,Class II,REP,REP,DEM,Mary S. Peltola,Mary,Peltola
+Alaska,Class II,REP,REP,DEM,Mary Peltola,Mary,Peltola
 Alaska,Class II,REP,REP,REP,Dan Sullivan,Dan,Sullivan
 Arkansas,Class II,REP,REP,DEM,Hallie Shoffner,Hallie,Shoffner
 Arkansas,Class II,REP,REP,REP,Tom Cotton,Tom,Cotton
@@ -15,8 +15,8 @@ Delaware,Class II,DEM,DEM,DEM,Chris Coons,Chris,Coons
 Delaware,Class II,DEM,DEM,REP,Michael Katz,Michael,Katz
 Georgia,Class II,DEM,DEM,DEM,Jon Ossoff,Jon,Ossoff
 Georgia,Class II,DEM,DEM,REP,Mike Collins,Mike,Collins
-Idaho,Class II,REP,REP,DEM,David Roth,David,Roth
-Idaho,Class II,REP,REP,REP,James E. Risch,Jim,Risch
+Idaho,Class II,REP,REP,DEM,None,,
+Idaho,Class II,REP,REP,REP,James Risch,Jim,Risch
 Illinois,Class II,DEM,None,DEM,Juliana Stratton,Juliana,Stratton
 Illinois,Class II,DEM,None,REP,Don Tracy,Don,Tracy
 Iowa,Class II,REP,None,DEM,Zach Wahls,Zach,Wahls
@@ -28,8 +28,8 @@ Kentucky,Class II,REP,None,REP,Andy Barr,Andy,Barr
 Louisiana,Class II,REP,None,DEM,Jamie Davis,Jamie,Davis
 Louisiana,Class II,REP,None,REP,Julia Letlow,Julia,Letlow
 Maine,Class II,REP,REP,DEM,Troy Jackson,Troy,Jackson
-Maine,Class II,REP,REP,REP,Susan M. Collins,Susan,Collins
-Massachusetts,Class II,DEM,DEM,DEM,Edward J. Markey,Ed,Markey
+Maine,Class II,REP,REP,REP,Susan Collins,Susan,Collins
+Massachusetts,Class II,DEM,DEM,DEM,Ed Markey,Ed,Markey
 Massachusetts,Class II,DEM,DEM,REP,John Deaton,John,Deaton
 Michigan,Class II,DEM,None,DEM,Abdul El-Sayed,Abdul,El-Sayed
 Michigan,Class II,DEM,None,REP,Mike Rogers,Mike,Rogers
@@ -43,12 +43,12 @@ Nebraska,Class II,REP,REP,DEM,None,,
 Nebraska,Class II,REP,REP,REP,Pete Ricketts,Pete,Ricketts
 Nebraska,Class II,REP,REP,IND,Dan Osborn,Dan,Osborn
 New Hampshire,Class II,DEM,None,DEM,Chris Pappas,Chris,Pappas
-New Hampshire,Class II,DEM,None,REP,John E. Sununu,John,Sununu
+New Hampshire,Class II,DEM,None,REP,John Sununu,John,Sununu
 New Jersey,Class II,DEM,DEM,DEM,Cory Booker,Cory,Booker
 New Jersey,Class II,DEM,DEM,REP,Justin Murphy,Justin,Murphy
 New Mexico,Class II,DEM,DEM,DEM,Ben Ray Luján,Ben Ray,Luján
 New Mexico,Class II,DEM,DEM,REP,Larry Marker,Larry,Marker
-North Carolina,Class II,REP,None,DEM,Roy A. Cooper,Roy,Cooper
+North Carolina,Class II,REP,None,DEM,Roy Cooper,Roy,Cooper
 North Carolina,Class II,REP,None,REP,Michael Whatley,Michael,Whatley
 Oklahoma,Class II,REP,None,DEM,N'Kiyla Jasmine Thomas,N'Kiyla Jasmine,Thomas
 Oklahoma,Class II,REP,None,REP,Kevin Hern,Kevin,Hern
@@ -64,7 +64,7 @@ Tennessee,Class II,REP,REP,DEM,Marquita Bradshaw,Marquita,Bradshaw
 Tennessee,Class II,REP,REP,REP,Bill Hagerty,Bill,Hagerty
 Texas,Class II,REP,None,DEM,James Talarico,James,Talarico
 Texas,Class II,REP,None,REP,Ken Paxton,Ken,Paxton
-Virginia,Class II,DEM,DEM,DEM,Mark R. Warner,Mark,Warner
+Virginia,Class II,DEM,DEM,DEM,Mark Warner,Mark,Warner
 Virginia,Class II,DEM,DEM,REP,Bert Mizusawa,Bert,Mizusawa
 West Virginia,Class II,REP,REP,DEM,Rachel Fetty Anderson,Rachel,Fetty Anderson
 West Virginia,Class II,REP,REP,REP,Shelley Moore Capito,Shelley,Moore Capito
