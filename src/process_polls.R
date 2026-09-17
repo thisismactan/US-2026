@@ -61,7 +61,7 @@ poll_average_df_list <- vector("list", length(poll_average_dates))
 for(i in seq_along(poll_average_dates)) {
   filtered_polls <- generic_ballot_polls_2026 %>%
     filter(end_date <= poll_average_dates[i],
-           poll_average_dates[i] - median_date <= 90) %>%
+           poll_average_dates[i] - median_date <= 30) %>%
     mutate(poll_age = as.numeric(poll_average_dates[i] - median_date),
            weight = pre_labor_day_weight * method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1) * n^(0.25) /
              (exp((poll_age + 7)^0.5) * ifelse(spread == 0, 3, 1)),
@@ -192,7 +192,7 @@ for(i in seq_along(poll_average_dates)) {
   next_election_date <- min(house_election_dates[house_election_dates >= poll_average_dates[i]])
   filtered_polls <- historical_generic_ballot_polls %>%
     filter(end_date <= poll_average_dates[i],
-           poll_average_dates[i] - median_date <= 90) %>%
+           poll_average_dates[i] - median_date <= 30) %>%
     mutate(poll_age = as.numeric(poll_average_dates[i] - median_date),
            weight = pre_labor_day_weight * method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1) * n^(0.25) /
              (exp((poll_age + 7)^0.5) * ifelse(spread == 0, 3, 1)),
