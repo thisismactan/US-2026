@@ -317,7 +317,8 @@ senate_poll_leans_2026 <- senate_polls_2026 %>%
                                    TRUE ~ 0.0),
          r2p_lean = r2p - partisan_lean - generic_ballot_avg,
          weight = pre_labor_day_weight * method_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1) * n^(0.25) / 
-           (exp((poll_age + 7)^0.4) * ifelse(spread == 0, 3, 1)))
+           (exp((poll_age + 7)^0.4) * ifelse(spread == 0, 3, 1))) %>%
+  filter(!((state == "Alaska") & !ranked_choice_reallocated))
 
 senate_average_leans_2026 <- senate_poll_leans_2026 %>%
   filter(weight > 0) %>%
