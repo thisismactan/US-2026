@@ -1,6 +1,5 @@
 # Data handling
 library(tidyverse)
-library(tidybayes)
 library(reshape2)
 library(mvnfast)
 library(scales)
