@@ -21,7 +21,7 @@ model {
   for (i in 1:N) {
     mu[i] = b * avg[i] + state_alpha[state[i]];
   }
-  sigma ~ exponential(0.04);
+  sigma ~ exponential(0.02);
   sen_r2p ~ normal(mu, sigma);
 }
 
