@@ -72,7 +72,7 @@ for(i in seq_along(poll_average_dates)) {
     select(weight, r2p) %>%
     summarise(avg = wtd.mean(r2p, weight),
               eff_n = sum(weight)^2 / sum(weight^2),
-              sd = sqrt(wtd.var(r2p, weight, normwt = TRUE) * n() / (n() - 1.5)),
+              sd = sqrt(wtd.var(r2p, weight, normwt = TRUE)),
               .groups = "drop") %>%
     mutate(se = sd / sqrt(eff_n),
            avg_date = poll_average_dates[i],
@@ -204,7 +204,7 @@ for(i in seq_along(poll_average_dates)) {
     group_by(election_date) %>%
     summarise(avg = wtd.mean(r2p, weight),
               eff_n = sum(weight)^2 / sum(weight^2),
-              sd = sqrt(wtd.var(r2p, weight, normwt = TRUE) * n() / (n() - 1.5)),
+              sd = sqrt(wtd.var(r2p, weight, normwt = TRUE)),
               .groups = "drop") %>%
     mutate(se = sd / sqrt(eff_n),
            avg_date = poll_average_dates[i],
@@ -326,7 +326,7 @@ senate_average_leans_2026 <- senate_poll_leans_2026 %>%
   group_by(state, seat_name, election_date) %>%
   summarise(avg_lean = wtd.mean(r2p_lean, weight),
             eff_n = sum(weight)^2 / sum(weight^2),
-            sd = sqrt(wtd.var(r2p_lean, weight, normwt = TRUE) * n() / (n() - 1.5)),
+            sd = sqrt(wtd.var(r2p_lean, weight, normwt = TRUE)),
             .groups = "drop") %>%
   mutate(se = sd / sqrt(eff_n),
          avg_date = today(),
@@ -422,7 +422,7 @@ for(i in seq_along(poll_average_dates)) {
     group_by(state, seat_name, election_date, party = as.character(party)) %>%
     summarise(avg_lean = wtd.mean(r2p_lean, weight),
               eff_n = sum(weight)^2 / sum(weight^2),
-              sd = sqrt(wtd.var(r2p_lean, weight, normwt = TRUE) * n() / (n() - 1.5)),
+              sd = sqrt(wtd.var(r2p_lean, weight, normwt = TRUE)),
               .groups = "drop") %>%
     mutate(se = sd / sqrt(eff_n),
            avg_date = poll_average_dates[i],
