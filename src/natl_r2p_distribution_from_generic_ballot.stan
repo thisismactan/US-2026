@@ -12,7 +12,7 @@ parameters {
 
 // Model
 model {
-  sigma ~ exponential(0.04);
+  sigma ~ exponential(0.03);
   natl_r2p ~ normal(avg, sigma);
 }
 
