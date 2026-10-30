@@ -160,7 +160,9 @@ senate_forecast_timeline %>%
 
 ## Joint probability distribution of House and Senate majorities
 senate_seat_sims %>% 
-  mutate(senate_maj = ifelse(rep >= 50, "Republican", "Democratic")) %>%
+  mutate(senate_maj = case_when(rep >= 50 ~ "Republican",
+                                dem > 50 ~ "Democratic",
+                                TRUE ~ "No majority")) %>%
   select(sim_id, senate_maj) %>%
   left_join(house_seat_sims %>%
               mutate(house_maj = ifelse(rep > 435/2, "Republican", "Democratic")) %>%

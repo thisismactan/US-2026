@@ -243,7 +243,10 @@ senate_2026_data <- read_csv("data/senate_candidates_2026.csv") %>%
          midterm = TRUE) %>%
   left_join(last_senate_results %>%
               mutate(contested_last = democrat_running & republican_running) %>%
-              select(last_election_year = year, state, class, last_r2p = rep, contested_last), 
+              select(last_election_year = year, state, class, last_r2p = rep, contested_last) %>%
+              filter(!((state == "Nebraska") & (class == 2))) %>%
+              mutate(class = ifelse((state == "Nebraska") & (last_election_year == 2024), 2, class),
+                     contested_last = ifelse((state == "Nebraska") & (last_election_year == 2024), TRUE, contested_last)), 
             by = c("state", "class")) %>%
   left_join(presidential_leans %>% filter(year == 2024) %>% select(state, last_pres_r2p = state_margin),
             by = "state") %>%
