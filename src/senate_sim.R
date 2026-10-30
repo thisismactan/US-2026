@@ -170,7 +170,7 @@ senate_state_swing_posterior <- senate_swing_posterior %>%
   left_join(tibble(sim_id = 1:n_sims, natl_r2p = senate_swing_posterior$natl_r2p_oot), by = "sim_id") %>%
   select(sim_id, natl_r2p, everything()) %>%
   group_by(state, seat_name) %>%
-  mutate(swing_weight = 1 / var(r2p_pred)) %>%
+  mutate(swing_weight = ifelse(state == "Montana", 0, 1 / var(r2p_pred))) %>%
   ungroup()
 
 senate_state_posterior <- senate_state_swing_posterior %>%
@@ -194,7 +194,7 @@ senate_conditional_posteriors <- senate_swing_posterior %>%
          margin_diff = rep(rep(r2p_margin_diffs, length(senate_2026_data$state)), n_sims)) %>%
   select(state, seat_name, sim_id, margin_diff, r2p_swing_pred) %>%
   group_by(state, seat_name, margin_diff) %>%
-  mutate(r2p_swing_weight = 1 / var(r2p_swing_pred)) %>%
+  mutate(r2p_swing_weight = ifelse(state == "Montana", 0, 1 / var(r2p_swing_pred))) %>%
   ungroup() %>%
   left_join(senate_poll_conditional_posterior, by = c("state", "seat_name", "sim_id", "margin_diff")) %>%
   select(state, seat_name, sim_id, margin_diff, r2p_swing_pred, r2p_swing_weight, r2p_poll_pred = sim_r2p, 
@@ -207,8 +207,8 @@ senate_conditional_posteriors <- senate_swing_posterior %>%
                               TRUE ~ r2p_pred)) %>%
   group_by(sim_id, margin_diff) %>%
   summarise(rep = sum(r2p_pred > 0.5) + 31,
-            dem = sum((r2p_pred <= 0.5) & state != "Nebraska") + 34,
-            ind = sum((r2p_pred <= 0.5) & state == "Nebraska")) %>%
+            dem = sum((r2p_pred <= 0.5) & !(state %in% c("Montana", "Nebraska"))) + 34,
+            ind = sum((r2p_pred <= 0.5) & (state %in% c("Montana", "Nebraska")))) %>%
   ungroup() %>%
   melt(id.vars = c("sim_id", "margin_diff"), variable.name = "party", value.name = "seats") %>%
   group_by(party, margin_diff, seats) %>%
@@ -229,8 +229,8 @@ senate_state_posterior_summary_stats <- senate_state_posterior %>%
 senate_seat_sims <- senate_state_posterior %>%
   group_by(sim_id) %>%
   summarise(rep = sum(r2p > 0.5) + 31,
-            dem = sum((r2p <= 0.5) & state != "Nebraska") + 34,
-            ind = sum((r2p <= 0.5) & state == "Nebraska"))
+            dem = sum((r2p <= 0.5) & !(state %in% c("Montana", "Nebraska"))) + 34,
+            ind = sum((r2p <= 0.5) & (state %in% c("Montana", "Nebraska"))))
 
 senate_state_posterior %>%
   arrange(state, seat_name, sim_id) %>%

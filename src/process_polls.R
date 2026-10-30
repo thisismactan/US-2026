@@ -255,6 +255,70 @@ senate_poll_cand_lists_2026 <- read_csv("data/polls/senate_polls_2026.csv") %>%
   group_by(poll_id, question_id) %>%
   summarise(cand_list = paste(candidate_name, collapse = "|"))
 
+### Separate Montana handling
+montana_average_leans_2026 <- senate_polls_2026 %>%
+  select(state, seat_name, poll_id, pollster_id, pollster, sponsor_ids, sponsor_candidate_party, methodology, 
+         start_date, end_date, question_id, sample_size, population, tracking, internal, partisan, cycle, 
+         election_date, ranked_choice_reallocated, party, candidate_name, pct) %>%
+  filter(candidate_name %in% c("Kurt Alme", "Alani Bankhead", "Seth Bodnar")) %>%
+  group_by(state, seat_name, poll_id, pollster_id, pollster, sponsor_ids, sponsor_candidate_party, methodology, 
+           start_date, end_date, population, tracking, internal, partisan, cycle, election_date, 
+           ranked_choice_reallocated, party, candidate_name) %>%
+  summarise(n = mean(sample_size),
+            pct = mean(pct)) %>%
+  mutate_at(c("election_date", "start_date", "end_date"), as.Date, format = "%m/%d/%y") %>%
+  mutate(year = year(election_date),
+         spread = as.numeric(round((end_date - start_date) / 2)),
+         median_date = start_date + spread,
+         days_to_election = as.numeric(election_date - median_date),
+         pre_labor_day_weight = ifelse(median_date < as.Date("2026-09-07"), 0.5, 2),
+         party = case_when(candidate_name == "Alani Bankhead" ~ "dem",
+                           candidate_name == "Kurt Alme" ~ "rep",
+                           candidate_name == "Seth Bodnar" ~ "ind")) %>%
+  filter(!is.na(n), !is.na(population), population != "a") %>%
+  mutate(state = state_abbr_decoder(state),
+         seat_name = ifelse(state %in% c("Florida", "Ohio"), "Class III", "Class II")) %>%
+  inner_join(senate_candidates_2026, by = c("state", "seat_name")) %>%
+  group_by(poll_id) %>%
+  mutate(keep_lv = ifelse(any(population == "lv"), population == "lv", population %in% c("rv", "v"))) %>%
+  ungroup() %>%
+  filter(keep_lv) %>%
+  group_by(state, seat_name, poll_id, pollster_id, pollster, sponsor_ids, sponsor_candidate_party, methodology, 
+           start_date, end_date, population, tracking, internal, partisan, cycle, election_date) %>%
+  mutate(pct = pct / sum(pct)) %>%
+  inner_join(generic_ballot_averages_2026_smoothed %>%
+               ungroup() %>%
+               select(avg_date, generic_ballot_avg = avg, generic_ballot_eff_n = eff_n, 
+                      generic_ballot_sd = sd, generic_ballot_se = se),
+             by = c("median_date" = "avg_date")) %>%
+  mutate(poll_age = as.numeric(today() - median_date),
+         partisan_lean = case_when(partisan == "DEM" ~ -0.02,
+                                   partisan == "REP" ~ 0.02,
+                                   partisan == "IND" ~ -0.02,
+                                   is.na(partisan) ~ 0.0,
+                                   TRUE ~ 0.0),
+         pct_lean = pct - partisan_lean - generic_ballot_avg,
+         weight = pre_labor_day_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1)  / 
+           (exp((poll_age + 5)^0.5))) %>%
+  filter(weight > 0) %>%
+  select(state, seat_name, party, election_date, weight, pct_lean) %>%
+  group_by(state, seat_name, party, election_date) %>%
+  summarise(avg_lean = wtd.mean(pct_lean, weight),
+            eff_n = sum(weight)^2 / sum(weight^2),
+            sd = sqrt(wtd.var(pct_lean, weight, normwt = TRUE)),
+            .groups = "drop") %>%
+  mutate(se = sd / sqrt(eff_n),
+         avg_date = today(),
+         days_to_election = as.numeric(election_date - avg_date)) %>%
+  filter(party %in% c("ind", "rep")) %>%
+  group_by(state, seat_name, election_date, avg_date, days_to_election) %>%
+  mutate(avg_lean = (avg_lean - lag(avg_lean)) / 2,
+         eff_n = mean(eff_n),
+         sd = sqrt(sum(sd^2)),
+         se = sd / sqrt(eff_n)) %>%
+  ungroup() %>%
+  na.omit()
+
 senate_poll_leans_2026 <- senate_polls_2026 %>%
   select(state, seat_name, poll_id, pollster_id, pollster, sponsor_ids, sponsor_candidate_party, methodology, 
          start_date, end_date, question_id, sample_size, population, tracking, internal, partisan, cycle, 
@@ -302,7 +366,7 @@ senate_poll_leans_2026 <- senate_polls_2026 %>%
                                    TRUE ~ 0.0),
          r2p_lean = r2p - partisan_lean - generic_ballot_avg,
          weight = pre_labor_day_weight * ifelse(is.na(partisan), 5, 1) * ifelse(population == "lv", 5, 1)  / 
-           (exp((poll_age + 7)^0.4))) %>%
+           (exp((poll_age + 5)^0.5))) %>%
   filter(!((state == "Alaska") & !ranked_choice_reallocated))
 
 senate_average_leans_2026 <- senate_poll_leans_2026 %>%
@@ -315,7 +379,10 @@ senate_average_leans_2026 <- senate_poll_leans_2026 %>%
             .groups = "drop") %>%
   mutate(se = sd / sqrt(eff_n),
          avg_date = today(),
-         days_to_election = as.numeric(election_date - avg_date))
+         days_to_election = as.numeric(election_date - avg_date)) %>%
+  filter(state != "Montana") %>%
+  bind_rows(montana_average_leans_2026) %>%
+  arrange(state)
   
 ## Historical
 historical_senate_candidates <- read_csv("data/historical_senate_candidates.csv") %>%
@@ -379,8 +446,7 @@ historical_senate_polls_r2p <- read_csv("data/polls/senate_polls_historical.csv"
   select(state, seat_name, election_date, poll_id, pollster_id, pollster, sponsor_ids, sponsor_candidate_party, start_date, 
          median_date, end_date, pre_labor_day_weight, spread, pop = population, n = sample_size, population, tracking, internal, 
          partisan, partisan_lean, cand_list, party, r2p, pct, generic_ballot_avg, generic_ballot_eff_n, generic_ballot_sd, generic_ballot_se) %>%
-  filter(party == "rep") %>%
-  mutate(r2p_lean = r2p - generic_ballot_avg)
+  filter(party == "rep")
 
 ## Senate averages over time (at the lean level)
 poll_average_dates <- seq(as.Date("2016-11-08"), as.Date("2024-11-05"))
@@ -393,7 +459,7 @@ for(i in seq_along(poll_average_dates)) {
     filter(end_date <= poll_average_dates[i],
            election_date == next_election_date) %>%
     mutate(poll_age = as.numeric(poll_average_dates[i] - median_date),
-           r2p_lean = r2p_lean - partisan_lean,
+           r2p_lean = r2p - generic_ballot_avg,
            weight = pre_labor_day_weight * ifelse(is.na(partisan), 5, 1) * ifelse(pop == "lv", 3, 1)  / 
              (exp(poll_age^0.1 + 1)))
   poll_average_df_list[[i]] <- filtered_polls %>%
