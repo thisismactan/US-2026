@@ -68,7 +68,7 @@ colnames(lag_matrix) <- c("int", "delta_t1", "delta_t2", "delta_t3", "delta_t4",
 n_days_to_election <- r2p_average_2026_changes_today$days_to_election
 change_matrix <- matrix(0, n_sims, n_days_to_election)
 
-for(i in 1:n_days_to_election) {
+for(i in 0:n_days_to_election) {
   election_period <- case_when(n_days_to_election - i >= 225 ~ 1,
                                n_days_to_election - i >= 100 ~ 2,
                                n_days_to_election - i >= 60 ~ 3,
